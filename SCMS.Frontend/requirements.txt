@@ -1,0 +1,1 @@
+npm install react-icons lucide-react sweetalert2 react-hook-form axios react-router-dom && npm install -D daisyui@latest
