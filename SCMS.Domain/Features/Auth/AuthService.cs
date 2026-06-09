@@ -24,9 +24,9 @@ namespace SCMS.Domain.Features.Auth
             {
                 return Result<AuthResponse>.Failure("Name is required.");
             }
-            if (string.IsNullOrWhiteSpace(request.Email))
+            if (string.IsNullOrWhiteSpace(request.MobileNo))
             {
-                return Result<AuthResponse>.Failure("Email is required.");
+                return Result<AuthResponse>.Failure("Mobile Number is required.");
             }
             if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
             {
@@ -111,24 +111,6 @@ namespace SCMS.Domain.Features.Auth
             await _context.SaveChangesAsync();
 
             return await IssueTokensAsync(token.User, "Token refreshed.");
-        }
-
-        public async Task<Result> LogoutAsync(string refreshToken)
-        {
-            if (string.IsNullOrWhiteSpace(refreshToken))
-            {
-                return Result.Success("Logged out.");
-            }
-
-            var tokenHash = _tokens.HashToken(refreshToken);
-            var token = await _context.TblUserTokens.FirstOrDefaultAsync(t => t.TokenHash == tokenHash && !t.Revoked);
-            if (token != null)
-            {
-                token.Revoked = true;
-                await _context.SaveChangesAsync();
-            }
-
-            return Result.Success("Logged out.");
         }
 
         public async Task<Result<CurrentUserResponse>> GetCurrentUserAsync(int userId)
