@@ -84,7 +84,7 @@ public class AuthServiceTests
         Assert.True(principal.IsStaff());
     }
 
-    private static AuthService CreateService(TestDatabase db, PasswordHashingService? passwords = null)
+    private static AuthService CreateService(TestDatabase db, IPasswordHashingService? passwords = null)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -97,6 +97,6 @@ public class AuthServiceTests
             })
             .Build();
 
-        return new AuthService(db.Context, passwords ?? new PasswordHashingService(), new JwtTokenFactory(configuration));
+        return new AuthService(db.Context, passwords ?? new PasswordHashingService(), new TokenService(configuration));
     }
 }

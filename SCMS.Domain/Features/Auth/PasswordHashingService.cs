@@ -1,9 +1,9 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 
-namespace SCMS.Domain.Security
+namespace SCMS.Domain.Features.Auth
 {
-    public sealed class PasswordHashingService
+    public sealed class PasswordHashingService : IPasswordHashingService
     {
         private const int Iterations = 100_000;
         private const int SaltSize = 16;

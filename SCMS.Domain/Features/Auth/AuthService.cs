@@ -1,18 +1,17 @@
 using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
-using SCMS.Domain.Security;
 using SCMS.Shared;
 using SCMS.Shared.Contracts.Auth;
 
 namespace SCMS.Domain.Features.Auth
 {
-    public class AuthService
+    public class AuthService : IAuthService
     {
         private readonly AppDbContext _context;
-        private readonly PasswordHashingService _passwords;
-        private readonly JwtTokenFactory _tokens;
+        private readonly IPasswordHashingService _passwords;
+        private readonly ITokenService _tokens;
 
-        public AuthService(AppDbContext context, PasswordHashingService passwords, JwtTokenFactory tokens)
+        public AuthService(AppDbContext context, IPasswordHashingService passwords, ITokenService tokens)
         {
             _context = context;
             _passwords = passwords;
@@ -150,7 +149,7 @@ namespace SCMS.Domain.Features.Auth
         {
             var roles = GetNormalizedRoles(user);
             var expiresAt = _tokens.AccessTokenExpiresAt;
-            var accessToken = _tokens.CreateAccessToken(user.UserId, user.Name, user.Email, roles, expiresAt);
+            var accessToken = _tokens.GenerateAccessToken(user);
             var refreshToken = _tokens.CreateRefreshToken();
 
             _context.TblUserTokens.Add(new TblUserToken
