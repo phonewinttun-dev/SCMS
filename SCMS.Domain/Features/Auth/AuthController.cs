@@ -33,13 +33,13 @@ namespace SCMS.Domain.Features.Auth
             return result.IsSuccess ? Ok(result) : Unauthorized(result);
         }
 
-        [AllowAnonymous]
-        [HttpPost("refresh")]
-        public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request)
-        {
-            var result = await _authService.RefreshAsync(request);
-            return result.IsSuccess ? Ok(result) : Unauthorized(result);
-        }
+        //[AllowAnonymous]
+        //[HttpPost("refresh")]
+        //public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request)
+        //{
+        //    var result = await _authService.RefreshAsync(request);
+        //    return result.IsSuccess ? Ok(result) : Unauthorized(result);
+        //}
 
         //[Authorize]
         //[HttpPost("logout")]

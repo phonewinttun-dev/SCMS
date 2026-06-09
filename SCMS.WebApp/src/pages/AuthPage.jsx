@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Lock, Mail, ShieldCheck, User } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, Phone, ShieldCheck, User } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -16,8 +16,9 @@ export default function AuthPage({ mode = "login" }) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: "",
-    email: "dr.thandar@scms.demo",
-    password: "password",
+    email: isRegister ? "" : "dr.thandar@scms.demo",
+    password: isRegister ? "" : "password",
+    mobileNo: "",
   });
 
   const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
@@ -25,9 +26,16 @@ export default function AuthPage({ mode = "login" }) {
   const submit = async (event) => {
     event.preventDefault();
 
-    if (!form.email.trim() || !form.password.trim() || (isRegister && !form.name.trim())) {
-      await showError(t.requiredFields);
-      return;
+    if (isRegister) {
+      if (!form.name.trim() || !form.mobileNo.trim() || !form.password.trim()) {
+        await showError(t.requiredFields);
+        return;
+      }
+    } else {
+      if (!form.email.trim() || !form.password.trim()) {
+        await showError(t.requiredFields);
+        return;
+      }
     }
 
     try {
@@ -35,12 +43,14 @@ export default function AuthPage({ mode = "login" }) {
       if (isRegister) {
         await register({
           name: form.name.trim(),
-          email: form.email.trim(),
+          email: form.email.trim() || null,
+          mobileNo: form.mobileNo.trim(),
           password: form.password,
         });
       }
 
-      const user = await login({ emailOrMobile: form.email.trim(), password: form.password });
+      const loginIdentifier = (isRegister && !form.email.trim()) ? form.mobileNo.trim() : form.email.trim();
+      const user = await login({ emailOrMobile: loginIdentifier, password: form.password });
       if (user?.role === "user") {
         navigate("/user/dashboard", { replace: true });
       } else {
@@ -96,11 +106,25 @@ export default function AuthPage({ mode = "login" }) {
             </label>
           )}
 
+          {isRegister && (
+            <label className="mb-4 block">
+              <span className="mb-2 block text-xs font-extrabold text-scms-text">{t.phone}</span>
+              <div className="relative">
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-scms-muted" size={18} />
+                <input className="scms-input scms-input-icon w-full" value={form.mobileNo} onChange={(event) => update("mobileNo", event.target.value)} />
+              </div>
+            </label>
+          )}
+
           <label className="mb-4 block">
-            <span className="mb-2 block text-xs font-extrabold text-scms-text">{t.email}</span>
+            <span className="mb-2 block text-xs font-extrabold text-scms-text">
+              {isRegister 
+                ? `${t.email} (${language === "en" ? "Optional" : "ရွေးချယ်ရန်"})` 
+                : `${t.email} / ${t.phone}`}
+            </span>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-scms-muted" size={18} />
-              <input className="scms-input scms-input-icon w-full" type="email" value={form.email} onChange={(event) => update("email", event.target.value)} />
+              <input className="scms-input scms-input-icon w-full" type={isRegister ? "email" : "text"} value={form.email} onChange={(event) => update("email", event.target.value)} />
             </div>
           </label>
 

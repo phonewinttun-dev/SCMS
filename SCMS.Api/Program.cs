@@ -24,150 +24,150 @@ try
 
 
 
-builder.Services.AddScmsFeatureControllers();
-builder.Services.AddScmsFeatureServices(builder.Configuration);
+    builder.Services.AddControllers();
+    builder.AddDomain();
 
-builder.Services.AddSignalR();
+    builder.Services.AddSignalR();
 
 
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("ScmsWeb", policy =>
+    builder.Services.AddCors(options =>
     {
-        policy
-            .SetIsOriginAllowed(_ => true)
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-    });
-});
-
-
-
-builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        var issuer =
-            builder.Configuration["Jwt:Issuer"]
-            ?? "SCMS.Api";
-
-        var audience =
-            builder.Configuration["Jwt:Audience"]
-            ?? "SCMS.Web";
-
-        var signingKey =
-            builder.Configuration["Jwt:SigningKey"]
-            ?? "SCMS development signing key - 32 characters long!";
-
-        options.TokenValidationParameters =
-            new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuer = issuer,
-
-                ValidateAudience = true,
-                ValidAudience = audience,
-
-                ValidateIssuerSigningKey = true,
-
-                IssuerSigningKey =
-                    new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(signingKey)
-                    ),
-
-                ValidateLifetime = true,
-
-                ClockSkew = TimeSpan.FromMinutes(1)
-            };
-
-
-
-        options.Events = new JwtBearerEvents
+        options.AddPolicy("ScmsWeb", policy =>
         {
-            OnMessageReceived = context =>
-            {
-                var accessToken =
-                    context.Request.Query["access_token"];
+            policy
+                .SetIsOriginAllowed(_ => true)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        });
+    });
 
-                var path =
-                    context.HttpContext.Request.Path;
 
-                if (
-                    !string.IsNullOrEmpty(accessToken)
-                    && path.StartsWithSegments("/hubs")
-                )
+
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            var issuer =
+                builder.Configuration["Jwt:Issuer"]
+                ?? "SCMS.Api";
+
+            var audience =
+                builder.Configuration["Jwt:Audience"]
+                ?? "SCMS.Web";
+
+            var signingKey =
+                builder.Configuration["Jwt:SigningKey"]
+                ?? "SCMS development signing key - 32 characters long!";
+
+            options.TokenValidationParameters =
+                new TokenValidationParameters
                 {
-                    context.Token = accessToken;
+                    ValidateIssuer = true,
+                    ValidIssuer = issuer,
+
+                    ValidateAudience = true,
+                    ValidAudience = audience,
+
+                    ValidateIssuerSigningKey = true,
+
+                    IssuerSigningKey =
+                        new SymmetricSecurityKey(
+                            Encoding.UTF8.GetBytes(signingKey)
+                        ),
+
+                    ValidateLifetime = true,
+
+                    ClockSkew = TimeSpan.FromMinutes(1)
+                };
+
+
+
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var accessToken =
+                        context.Request.Query["access_token"];
+
+                    var path =
+                        context.HttpContext.Request.Path;
+
+                    if (
+                        !string.IsNullOrEmpty(accessToken)
+                        && path.StartsWithSegments("/hubs")
+                    )
+                    {
+                        context.Token = accessToken;
+                    }
+
+                    return Task.CompletedTask;
                 }
+            };
+        });
 
-                return Task.CompletedTask;
-            }
-        };
-    });
+    builder.Services.AddAuthorization();
 
-builder.Services.AddAuthorization();
+    builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddEndpointsApiExplorer();
-
-builder.Services.AddSwaggerGen();
+    builder.Services.AddSwaggerGen();
 
 
 
-var app = builder.Build();
+    var app = builder.Build();
 
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapSwagger("/openapi/{documentName}.json");
-
-    app.MapScalarApiReference();
-}
-
-
-
-app.UseExceptionHandler(errorApp =>
-{
-    errorApp.Run(async context =>
+    if (app.Environment.IsDevelopment())
     {
-        context.Response.StatusCode =
-            StatusCodes.Status500InternalServerError;
+        app.MapSwagger("/openapi/{documentName}.json");
 
-        context.Response.ContentType =
-            "application/json";
+        app.MapScalarApiReference();
+    }
 
-        await context.Response.WriteAsJsonAsync(
-            Result.Failure(
-                "An unexpected server error occurred. Check the API logs and database connection."
-            )
-        );
+
+
+    app.UseExceptionHandler(errorApp =>
+    {
+        errorApp.Run(async context =>
+        {
+            context.Response.StatusCode =
+                StatusCodes.Status500InternalServerError;
+
+            context.Response.ContentType =
+                "application/json";
+
+            await context.Response.WriteAsJsonAsync(
+                Result.Failure(
+                    "An unexpected server error occurred. Check the API logs and database connection."
+                )
+            );
+        });
     });
-});
 
 
-app.UseHttpsRedirection();
+    app.UseHttpsRedirection();
 
 
-app.UseCors("ScmsWeb");
+    app.UseCors("ScmsWeb");
 
-app.UseAuthentication();
+    app.UseAuthentication();
 
-app.UseAuthorization();
-
-
-
-app.MapControllers();
+    app.UseAuthorization();
 
 
 
-app.MapHub<QueueHub>("/hubs/queue");
-
-app.MapHub<NotificationsHub>("/hubs/notifications");
+    app.MapControllers();
 
 
 
-app.Run();
+    app.MapHub<QueueHub>("/hubs/queue");
+
+    app.MapHub<NotificationsHub>("/hubs/notifications");
+
+
+
+    app.Run();
 }
 catch (Exception ex)
 {

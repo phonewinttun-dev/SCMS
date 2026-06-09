@@ -8,7 +8,7 @@ namespace SCMS.Domain.Features.Auth
         Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request);
         Task<Result<AuthResponse>> LoginAsync(LoginRequest request);
         Task<Result<AuthResponse>> RefreshAsync(RefreshTokenRequest request);
-        Task<Result> LogoutAsync(string refreshToken);
+        //Task<Result> LogoutAsync(string refreshToken);
         Task<Result<CurrentUserResponse>> GetCurrentUserAsync(int userId);
     }
 }

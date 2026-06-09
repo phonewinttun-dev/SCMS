@@ -33,6 +33,25 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task RegisterAsync_WithoutEmail_Succeeds()
+    {
+        using var db = new TestDatabase();
+        var service = CreateService(db);
+
+        var result = await service.RegisterAsync(new RegisterRequest
+        {
+            Name = "No Email Patient",
+            Email = null,
+            MobileNo = "09999999991",
+            Password = "StrongPass123"
+        });
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Data!.User.Email);
+        Assert.Equal("09999999991", result.Data.User.MobileNo);
+    }
+
+    [Fact]
     public async Task LoginAsync_AddsPatientAliasForLegacyUserRole()
     {
         using var db = new TestDatabase();

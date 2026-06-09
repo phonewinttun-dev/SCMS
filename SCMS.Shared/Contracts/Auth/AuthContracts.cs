@@ -3,8 +3,8 @@ namespace SCMS.Shared.Contracts.Auth
     public class RegisterRequest
     {
         public string Name { get; set; } = null!;
-        public string? MobileNo { get; set; }
-        public string Email { get; set; } = null!;
+        public string MobileNo { get; set; } = null!;
+        public string? Email { get; set; }
         public string Password { get; set; } = null!;
     }
 

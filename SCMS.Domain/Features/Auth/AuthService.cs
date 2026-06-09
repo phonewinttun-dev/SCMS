@@ -33,11 +33,10 @@ namespace SCMS.Domain.Features.Auth
                 return Result<AuthResponse>.Failure("Password must be at least 8 characters.");
             }
 
-            var email = request.Email.Trim().ToLowerInvariant();
-            var mobile = string.IsNullOrWhiteSpace(request.MobileNo) ? null : request.MobileNo.Trim();
-            var exists = await _context.TblUsers.AnyAsync(u =>
-                u.DeleteFlag != true &&
-                ((u.Email != null && u.Email.ToLower() == email) || (mobile != null && u.MobileNo == mobile)));
+            var email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim().ToLowerInvariant();
+            var mobile = request.MobileNo.Trim();
+            var exists = await _context.TblUsers.AnyAsync(u => u.DeleteFlag != true &&
+                ((email != null && u.Email != null && u.Email.ToLower() == email) || u.MobileNo == mobile));
 
             if (exists)
             {
@@ -75,7 +74,7 @@ namespace SCMS.Domain.Features.Auth
                 return Result<AuthResponse>.Failure("Email/mobile and password are required.");
             }
 
-            var login = request.EmailOrMobile.Trim().ToLowerInvariant();
+            var login = request.EmailOrMobile.Trim().ToLower();
             var user = await _context.TblUsers
                 .Include(u => u.TblUserRoles)
                 .FirstOrDefaultAsync(u => u.DeleteFlag != true
