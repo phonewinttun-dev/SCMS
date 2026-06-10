@@ -13,9 +13,9 @@ namespace SCMS.Domain.Features.Appointments
     [Route("api/[controller]")]
     public class AppointmentsController : ControllerBase
     {
-        private readonly AppointmentsService _appointmentsService;
+        private readonly IAppointmentService _appointmentsService;
 
-        public AppointmentsController(AppointmentsService appointmentsService)
+        public AppointmentsController(IAppointmentService appointmentsService)
         {
             _appointmentsService = appointmentsService;
         }

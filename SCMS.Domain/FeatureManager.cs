@@ -52,7 +52,7 @@ namespace SCMS.Domain
             // register features
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddScoped<IPasswordHashingService, PasswordHashingService>();
-            builder.Services.AddScoped<AppointmentsService>();
+            builder.Services.AddScoped<IAppointmentService, AppointmentsService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<DashboardService>();
             builder.Services.AddScoped<DiseaseService>();

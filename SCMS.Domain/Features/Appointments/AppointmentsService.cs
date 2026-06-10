@@ -11,7 +11,7 @@ using SCMS.Domain.Features.Notifications;
 
 namespace SCMS.Domain.Features.Appointments
 {
-    public class AppointmentsService
+    public class AppointmentsService : IAppointmentService
     {
         private readonly AppDbContext _context;
         private readonly NotificationService? _notificationService;
