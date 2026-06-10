@@ -32,14 +32,11 @@ namespace SCMS.Domain.Features.Appointments
         #region Create Appointment
         public async Task<Result<BookAppointmentResponse>> BookAppointmentAsync(BookAppointmentRequest request, int userId)
         {
+            // Validation checks
             if (request.PatientId <= 0)
             {
                 return Result<BookAppointmentResponse>.Failure("Patient id is required.");
             }
-            //if (request.Datetime == default)
-            //{
-            //    return Result<BookAppointmentResponse>.Failure("Appointment date and time is required.");
-            //}
             if (request.Datetime.Date < DateTime.UtcNow.Date)
             {
                 return Result<BookAppointmentResponse>.Failure("Appointment date must be today or in the future.");
@@ -58,6 +55,7 @@ namespace SCMS.Domain.Features.Appointments
             // Format: APT-NNN-XXXX where NNN is the daily sequence and XXXX is a random hex suffix.
             // The suffix eliminates UNIQUE constraint collisions under concurrent requests while
             // keeping the code human-readable.
+            AppointmentDetailsResponse? appointmentDto = null;
             TblAppointment? appointment = null;
             string appointmentCode = string.Empty;
             int maxRetries = 5;
@@ -89,14 +87,24 @@ namespace SCMS.Domain.Features.Appointments
                 // Auto-assign slot time: first starts at 08:00 AM, each subsequent is spaced by 15 mins
                 var assignedTime = appointmentDate.AddHours(8).AddMinutes(todayCodes.Count * 15);
 
-                appointment = new TblAppointment
+                appointmentDto = new AppointmentDetailsResponse
                 {
                     AppointmentCode = appointmentCode,
                     PatientId = request.PatientId,
                     Datetime = assignedTime,
                     Status = "pending",
                     Notes = request.Notes,
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                appointment = new TblAppointment
+                {
+                    AppointmentCode = appointmentDto.AppointmentCode,
+                    PatientId = appointmentDto.PatientId,
+                    Datetime = appointmentDto.Datetime,
+                    Status = appointmentDto.Status,
+                    Notes = appointmentDto.Notes,
+                    CreatedAt = appointmentDto.CreatedAt,
                     UpdatedAt = DateTime.UtcNow
                 };
 
@@ -110,8 +118,9 @@ namespace SCMS.Domain.Features.Appointments
                 catch (DbUpdateException) // Postgres unique constraint check or generic fallback
                 {
                     // UNIQUE constraint still failed (extremely rare with suffix, but handle anyway)
-                    _context.Entry(appointment).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+                    _context.Entry(appointment).State = EntityState.Detached;
                     appointment = null;
+                    appointmentDto = null;
                     appointmentCode = string.Empty;
 
                     if (retry == maxRetries - 1)
@@ -122,7 +131,7 @@ namespace SCMS.Domain.Features.Appointments
                 }
             }
 
-            if (appointment == null)
+            if (appointment == null || appointmentDto == null)
             {
                 return Result<BookAppointmentResponse>.Failure("Unable to book appointment. Please try again.");
             }
@@ -130,14 +139,28 @@ namespace SCMS.Domain.Features.Appointments
             // Calculate Token and Queue status
             var queueStatus = await GetQueueInfoAsync(appointment);
 
+            var response = new BookAppointmentResponse
+            {
+                AppointmentId = appointment.Id,
+                AppointmentCode = appointment.AppointmentCode,
+                TokenNumber = queueStatus.PatientTokenNumber,
+                EstimatedWaitTimeMinutes = queueStatus.EstimatedWaitTimeMinutes,
+                Status = appointment.Status
+            };
+
+            // Format notification details
+            var arrivalTime = appointment.Datetime.AddMinutes(-30);
+            var notificationDescription = $"Your appointment (Code: {response.AppointmentCode}) has been booked for {appointment.Datetime:hh:mm tt} (expected consultation) and is pending approval. REQUIRED ARRIVAL: Please arrive at the clinic 30 minutes earlier at {arrivalTime:hh:mm tt} for check-in. You are {response.TokenNumber} in queue.";
+            var actionRoute = $"/appointments/{response.AppointmentId}";
+
             // Add an in-app notification for the patient user
             if (_notificationService != null)
             {
                 await _notificationService.CreateNotificationAsync(
                     patient.UserId,
                     "Appointment Booked",
-                    $"Your appointment (Code: {appointmentCode}) has been booked for {appointment.Datetime:hh:mm tt} (expected consultation) and is pending approval. REQUIRED ARRIVAL: Please arrive at the clinic 30 minutes earlier at {appointment.Datetime.AddMinutes(-30):hh:mm tt} for check-in. You are {queueStatus.PatientsAhead + 1} in queue.",
-                    $"/appointments/{appointment.Id}"
+                    notificationDescription,
+                    actionRoute
                 );
             }
             else
@@ -146,22 +169,15 @@ namespace SCMS.Domain.Features.Appointments
                 {
                     UserId = patient.UserId,
                     Title = "Appointment Booked",
-                    Description = $"Your appointment (Code: {appointmentCode}) has been booked for {appointment.Datetime:hh:mm tt} (expected consultation) and is pending approval. REQUIRED ARRIVAL: Please arrive at the clinic 30 minutes earlier at {appointment.Datetime.AddMinutes(-30):hh:mm tt} for check-in. You are {queueStatus.PatientsAhead + 1} in queue.",
-                    ActionRoute = $"/appointments/{appointment.Id}",
+                    Description = notificationDescription,
+                    ActionRoute = actionRoute,
                     CreatedAt = DateTime.UtcNow,
                     DeleteFlag = false
                 });
                 await _context.SaveChangesAsync();
             }
 
-            return Result<BookAppointmentResponse>.Success(new BookAppointmentResponse
-            {
-                AppointmentId = appointment.Id,
-                AppointmentCode = appointment.AppointmentCode,
-                TokenNumber = queueStatus.PatientTokenNumber,
-                EstimatedWaitTimeMinutes = queueStatus.EstimatedWaitTimeMinutes,
-                Status = appointment.Status
-            }, "Appointment booked successfully.");
+            return Result<BookAppointmentResponse>.Success(response, "Appointment booked successfully.");
         }
         #endregion
 
@@ -189,26 +205,34 @@ namespace SCMS.Domain.Features.Appointments
 
             await _context.SaveChangesAsync();
 
+            var tokenNumber = await GetTokenNumberAsync(appointment);
+            var responseDto = MapToDetailsResponse(appointment, tokenNumber);
+
             // Create notification if status changed
-            if (oldStatus != appointment.Status)
+            if (oldStatus != normalizedStatus)
             {
+                var title = $"Appointment {char.ToUpper(responseDto.Status[0]) + responseDto.Status.Substring(1)}";
+                var description = $"Your appointment (Code: {responseDto.AppointmentCode}) status has been updated to {responseDto.Status}.";
+                var actionRoute = $"/appointments/{responseDto.Id}";
+                var patientUserId = appointment.Patient?.UserId ?? 0;
+
                 if (_notificationService != null)
                 {
                     await _notificationService.CreateNotificationAsync(
-                        appointment.Patient.UserId,
-                        $"Appointment {char.ToUpper(appointment.Status[0]) + appointment.Status.Substring(1)}",
-                        $"Your appointment (Code: {appointment.AppointmentCode}) status has been updated to {appointment.Status}.",
-                        $"/appointments/{appointment.Id}"
+                        patientUserId,
+                        title,
+                        description,
+                        actionRoute
                     );
                 }
                 else
                 {
                     _context.TblNotifications.Add(new TblNotification
                     {
-                        UserId = appointment.Patient.UserId,
-                        Title = $"Appointment {char.ToUpper(appointment.Status[0]) + appointment.Status.Substring(1)}",
-                        Description = $"Your appointment (Code: {appointment.AppointmentCode}) status has been updated to {appointment.Status}.",
-                        ActionRoute = $"/appointments/{appointment.Id}",
+                        UserId = patientUserId,
+                        Title = title,
+                        Description = description,
+                        ActionRoute = actionRoute,
                         CreatedAt = DateTime.UtcNow,
                         DeleteFlag = false
                     });
@@ -216,7 +240,7 @@ namespace SCMS.Domain.Features.Appointments
                 }
             }
 
-            return Result<AppointmentDetailsResponse>.Success(MapToDetailsResponse(appointment, await GetTokenNumberAsync(appointment)), "Appointment status updated.");
+            return Result<AppointmentDetailsResponse>.Success(responseDto, "Appointment status updated.");
         }
 
         public async Task<Result<AppointmentDetailsResponse>> RescheduleAppointmentAsync(int id, RescheduleAppointmentRequest request)
@@ -246,31 +270,39 @@ namespace SCMS.Domain.Features.Appointments
 
             await _context.SaveChangesAsync();
 
+            var tokenNumber = await GetTokenNumberAsync(appointment);
+            var responseDto = MapToDetailsResponse(appointment, tokenNumber);
+
+            var title = "Appointment Reschedule Requested";
+            var description = $"Reschedule requested for appointment {responseDto.AppointmentCode} to {responseDto.Datetime:f}.";
+            var actionRoute = $"/appointments/{responseDto.Id}";
+            var patientUserId = appointment.Patient?.UserId ?? 0;
+
             // Create notification
             if (_notificationService != null)
             {
                 await _notificationService.CreateNotificationAsync(
-                    appointment.Patient.UserId,
-                    "Appointment Reschedule Requested",
-                    $"Reschedule requested for appointment {appointment.AppointmentCode} to {request.NewDatetime:f}.",
-                    $"/appointments/{appointment.Id}"
+                    patientUserId,
+                    title,
+                    description,
+                    actionRoute
                 );
             }
             else
             {
                 _context.TblNotifications.Add(new TblNotification
                 {
-                    UserId = appointment.Patient.UserId,
-                    Title = "Appointment Reschedule Requested",
-                    Description = $"Reschedule requested for appointment {appointment.AppointmentCode} to {request.NewDatetime:f}.",
-                    ActionRoute = $"/appointments/{appointment.Id}",
+                    UserId = patientUserId,
+                    Title = title,
+                    Description = description,
+                    ActionRoute = actionRoute,
                     CreatedAt = DateTime.UtcNow,
                     DeleteFlag = false
                 });
                 await _context.SaveChangesAsync();
             }
 
-            return Result<AppointmentDetailsResponse>.Success(MapToDetailsResponse(appointment, await GetTokenNumberAsync(appointment)), "Appointment rescheduled.");
+            return Result<AppointmentDetailsResponse>.Success(responseDto, "Appointment rescheduled.");
         }
 
         public async Task<PagedResult<AppointmentDetailsResponse>> GetAppointmentsAsync(
@@ -389,24 +421,32 @@ namespace SCMS.Domain.Features.Appointments
 
             await _context.SaveChangesAsync();
 
+            var token = await GetTokenNumberAsync(nextAppointment);
+            var responseDto = MapToDetailsResponse(nextAppointment, token);
+
             // Create notification for the called patient
+            var title = "It's Your Turn!";
+            var description = $"Doctor is ready to see you! Please proceed to the consultation room. (Token #{responseDto.TokenNumber})";
+            var actionRoute = $"/appointments/{responseDto.Id}";
+            var patientUserId = nextAppointment.Patient?.UserId ?? 0;
+
             if (_notificationService != null)
             {
                 await _notificationService.CreateNotificationAsync(
-                    nextAppointment.Patient.UserId,
-                    "It's Your Turn!",
-                    $"Doctor is ready to see you! Please proceed to the consultation room. (Token #{await GetTokenNumberAsync(nextAppointment)})",
-                    $"/appointments/{nextAppointment.Id}"
+                    patientUserId,
+                    title,
+                    description,
+                    actionRoute
                 );
             }
             else
             {
                 _context.TblNotifications.Add(new TblNotification
                 {
-                    UserId = nextAppointment.Patient.UserId,
-                    Title = "It's Your Turn!",
-                    Description = $"Doctor is ready to see you! Please proceed to the consultation room. (Token #{await GetTokenNumberAsync(nextAppointment)})",
-                    ActionRoute = $"/appointments/{nextAppointment.Id}",
+                    UserId = patientUserId,
+                    Title = title,
+                    Description = description,
+                    ActionRoute = actionRoute,
                     CreatedAt = DateTime.UtcNow,
                     DeleteFlag = false
                 });
@@ -424,23 +464,31 @@ namespace SCMS.Domain.Features.Appointments
             if (pendingQueue.Count > 0)
             {
                 var preCallPatientAppt = pendingQueue.Count >= 2 ? pendingQueue[1] : pendingQueue[0];
+                var preCallToken = await GetTokenNumberAsync(preCallPatientAppt);
+                var preCallDto = MapToDetailsResponse(preCallPatientAppt, preCallToken);
+
+                var preCallTitle = "Appointment Coming Up";
+                var preCallDescription = $"Your appointment (Token #{preCallDto.TokenNumber}) is estimated to start in {(pendingQueue.Count >= 2 ? "30" : "15")} minutes. Please proceed to the clinic immediately.";
+                var preCallActionRoute = $"/appointments/{preCallDto.Id}";
+                var preCallPatientUserId = preCallPatientAppt.Patient?.UserId ?? 0;
+
                 if (_notificationService != null)
                 {
                     await _notificationService.CreateNotificationAsync(
-                        preCallPatientAppt.Patient.UserId,
-                        "Appointment Coming Up",
-                        $"Your appointment (Token #{await GetTokenNumberAsync(preCallPatientAppt)}) is estimated to start in {(pendingQueue.Count >= 2 ? "30" : "15")} minutes. Please proceed to the clinic immediately.",
-                        $"/appointments/{preCallPatientAppt.Id}"
+                        preCallPatientUserId,
+                        preCallTitle,
+                        preCallDescription,
+                        preCallActionRoute
                     );
                 }
                 else
                 {
                     _context.TblNotifications.Add(new TblNotification
                     {
-                        UserId = preCallPatientAppt.Patient.UserId,
-                        Title = "Appointment Coming Up",
-                        Description = $"Your appointment (Token #{await GetTokenNumberAsync(preCallPatientAppt)}) is estimated to start in {(pendingQueue.Count >= 2 ? "30" : "15")} minutes. Please proceed to the clinic immediately.",
-                        ActionRoute = $"/appointments/{preCallPatientAppt.Id}",
+                        UserId = preCallPatientUserId,
+                        Title = preCallTitle,
+                        Description = preCallDescription,
+                        ActionRoute = preCallActionRoute,
                         CreatedAt = DateTime.UtcNow,
                         DeleteFlag = false
                     });
@@ -448,8 +496,7 @@ namespace SCMS.Domain.Features.Appointments
                 }
             }
 
-            var token = await GetTokenNumberAsync(nextAppointment);
-            return Result<AppointmentDetailsResponse>.Success(MapToDetailsResponse(nextAppointment, token), "Next patient called. Audio chime triggered.");
+            return Result<AppointmentDetailsResponse>.Success(responseDto, "Next patient called. Audio chime triggered.");
         }
 
         // Helper calculations
