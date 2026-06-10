@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using SCMS.Shared;
-using SCMS.Shared.Contracts.Mcp;
+using SCMS.Domain.DTOs.Mcp;
 
 namespace SCMS.Domain.Features.Mcp
 {

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using SCMS.Database.Models;
-using SCMS.Shared.Contracts.Medicines;
+using SCMS.Domain.DTOs.Medicines;
 using SCMS.Shared;
 using SCMS.Domain.Features.Photo;
 using SCMS.Domain.Features.Notifications;

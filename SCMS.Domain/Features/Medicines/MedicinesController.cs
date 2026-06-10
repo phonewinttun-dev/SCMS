@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using SCMS.Shared;
-using SCMS.Shared.Contracts.Medicines;
+using SCMS.Domain.DTOs.Medicines;
 
 namespace SCMS.Domain.Features.Medicines
 {

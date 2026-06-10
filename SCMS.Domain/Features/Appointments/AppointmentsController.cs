@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SCMS.Domain.Security;
-using SCMS.Shared.Contracts.Appointments;
+using SCMS.Domain.DTOs.Appointments;
 using SCMS.Shared;
 
 namespace SCMS.Domain.Features.Appointments

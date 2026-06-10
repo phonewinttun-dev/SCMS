@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using SCMS.Domain.Features.Documents;
 
 using SCMS.Domain.Security;
-using SCMS.Shared.Contracts.Patients;
+using SCMS.Domain.DTOs.Patients;
 using SCMS.Shared;
 
 namespace SCMS.Domain.Features.Patients

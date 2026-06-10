@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SCMS.Shared;
-using SCMS.Shared.Contracts.Reports;
+using SCMS.Domain.DTOs.Reports;
 
 namespace SCMS.Domain.Features.Documents
 {

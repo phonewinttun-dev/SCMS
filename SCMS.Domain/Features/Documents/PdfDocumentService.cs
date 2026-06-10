@@ -4,10 +4,10 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 
-using SCMS.Shared.Contracts.Patients;
-using SCMS.Shared.Contracts.Payments;
-using SCMS.Shared.Contracts.Prescriptions;
-using SCMS.Shared.Contracts.Reports;
+using SCMS.Domain.DTOs.Patients;
+using SCMS.Domain.DTOs.Payments;
+using SCMS.Domain.DTOs.Prescriptions;
+using SCMS.Domain.DTOs.Reports;
 
 namespace SCMS.Domain.Features.Documents
 {

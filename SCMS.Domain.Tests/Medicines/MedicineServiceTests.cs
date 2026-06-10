@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SCMS.Domain.Features.Medicines;
 using SCMS.Domain.Tests.TestSupport;
 using SCMS.Shared;
-using SCMS.Shared.Contracts.Medicines;
+using SCMS.Domain.DTOs.Medicines;
 
 namespace SCMS.Domain.Tests.Medicines;
 

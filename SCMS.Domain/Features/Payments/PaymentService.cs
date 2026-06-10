@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
-using SCMS.Shared.Contracts.Payments;
+using SCMS.Domain.DTOs.Payments;
 using SCMS.Shared;
 using SCMS.Domain.Features.Notifications;
 

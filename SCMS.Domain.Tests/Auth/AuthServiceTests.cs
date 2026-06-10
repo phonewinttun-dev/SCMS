@@ -5,7 +5,7 @@ using SCMS.Database.Models;
 using SCMS.Domain.Features.Auth;
 using SCMS.Domain.Security;
 using SCMS.Domain.Tests.TestSupport;
-using SCMS.Shared.Contracts.Auth;
+using SCMS.Domain.DTOs.Auth;
 
 namespace SCMS.Domain.Tests.Auth;
 

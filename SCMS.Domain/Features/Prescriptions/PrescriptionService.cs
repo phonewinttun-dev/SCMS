@@ -7,7 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
-using SCMS.Shared.Contracts.Prescriptions;
+using SCMS.Domain.DTOs.Prescriptions;
 using SCMS.Shared;
 using SCMS.Domain.Features.Notifications;
 

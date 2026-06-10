@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SCMS.Domain.Features.Documents;
-using SCMS.Shared.Contracts.Payments;
+using SCMS.Domain.DTOs.Payments;
 using SCMS.Shared;
 
 namespace SCMS.Domain.Features.Payments

@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
 using SCMS.Shared;
-using SCMS.Shared.Contracts.Diseases;
+using SCMS.Domain.DTOs.Diseases;
 
 namespace SCMS.Domain.Features.Diseases
 {

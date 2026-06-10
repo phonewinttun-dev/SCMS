@@ -6,7 +6,7 @@ using Xunit;
 using SCMS.Database.Models;
 using SCMS.Domain.Features.Mcp;
 using SCMS.Domain.Tests.TestSupport;
-using SCMS.Shared.Contracts.Mcp;
+using SCMS.Domain.DTOs.Mcp;
 
 namespace SCMS.Domain.Tests.Mcp
 {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
-using SCMS.Shared.Contracts.Notifications;
+using SCMS.Domain.DTOs.Notifications;
 using SCMS.Shared;
 using Microsoft.AspNetCore.SignalR;
 using SCMS.Domain.Realtime;

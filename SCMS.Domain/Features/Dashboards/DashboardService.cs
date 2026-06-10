@@ -5,10 +5,10 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
-using SCMS.Shared.Contracts.Dashboards;
-using SCMS.Shared.Contracts.Appointments;
-using SCMS.Shared.Contracts.Patients;
-using SCMS.Shared.Contracts.Prescriptions;
+using SCMS.Domain.DTOs.Dashboards;
+using SCMS.Domain.DTOs.Appointments;
+using SCMS.Domain.DTOs.Patients;
+using SCMS.Domain.DTOs.Prescriptions;
 using SCMS.Shared;
 
 namespace SCMS.Domain.Features.Dashboards

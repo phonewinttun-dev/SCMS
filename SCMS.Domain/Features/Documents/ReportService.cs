@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
 using SCMS.Shared;
-using SCMS.Shared.Contracts.Reports;
+using SCMS.Domain.DTOs.Reports;
 
 namespace SCMS.Domain.Features.Documents
 {

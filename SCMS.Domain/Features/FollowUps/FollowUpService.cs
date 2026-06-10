@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
 using SCMS.Shared;
-using SCMS.Shared.Contracts.FollowUps;
+using SCMS.Domain.DTOs.FollowUps;
 using SCMS.Domain.Features.Notifications;
 
 namespace SCMS.Domain.Features.FollowUps

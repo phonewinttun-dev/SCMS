@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SCMS.Domain.Security;
 using SCMS.Shared;
-using SCMS.Shared.Contracts.Auth;
+using SCMS.Domain.DTOs.Auth;
 
 namespace SCMS.Domain.Features.Auth
 {

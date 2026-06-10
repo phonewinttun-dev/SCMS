@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
 using SCMS.Shared;
-using SCMS.Shared.Contracts.Auth;
+using SCMS.Domain.DTOs.Auth;
 
 namespace SCMS.Domain.Features.Auth
 {

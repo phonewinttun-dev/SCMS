@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SCMS.Domain.Features.Documents;
-using SCMS.Shared.Contracts.Prescriptions;
+using SCMS.Domain.DTOs.Prescriptions;
 using SCMS.Shared;
 
 namespace SCMS.Domain.Features.Prescriptions

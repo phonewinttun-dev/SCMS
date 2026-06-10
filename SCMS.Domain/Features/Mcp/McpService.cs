@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
 using SCMS.Shared;
-using SCMS.Shared.Contracts.Mcp;
-using SCMS.Shared.Contracts.Prescriptions;
+using SCMS.Domain.DTOs.Mcp;
+using SCMS.Domain.DTOs.Prescriptions;
 
 namespace SCMS.Domain.Features.Mcp
 {

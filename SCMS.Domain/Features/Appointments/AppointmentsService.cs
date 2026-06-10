@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 // using Microsoft.Data.Sqlite;
 using SCMS.Database.Models;
-using SCMS.Shared.Contracts.Appointments;
+using SCMS.Domain.DTOs.Appointments;
 using SCMS.Shared;
 using SCMS.Domain.Features.Notifications;
 
@@ -29,6 +29,7 @@ namespace SCMS.Domain.Features.Appointments
             _notificationService = notificationService;
         }
 
+        #region Create Appointment
         public async Task<Result<BookAppointmentResponse>> BookAppointmentAsync(BookAppointmentRequest request, int userId)
         {
             if (request.PatientId <= 0)
@@ -59,7 +60,7 @@ namespace SCMS.Domain.Features.Appointments
             // keeping the code human-readable.
             TblAppointment? appointment = null;
             string appointmentCode = string.Empty;
-            int maxRetries = 10;
+            int maxRetries = 5;
 
             for (int retry = 0; retry < maxRetries; retry++)
             {
@@ -106,7 +107,7 @@ namespace SCMS.Domain.Features.Appointments
                     await _context.SaveChangesAsync();
                     break; // Success — exit retry loop
                 }
-                catch (DbUpdateException ex) // Postgres unique constraint check or generic fallback
+                catch (DbUpdateException) // Postgres unique constraint check or generic fallback
                 {
                     // UNIQUE constraint still failed (extremely rare with suffix, but handle anyway)
                     _context.Entry(appointment).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
@@ -162,6 +163,7 @@ namespace SCMS.Domain.Features.Appointments
                 Status = appointment.Status
             }, "Appointment booked successfully.");
         }
+        #endregion
 
         public async Task<Result<AppointmentDetailsResponse>> UpdateAppointmentStatusAsync(int id, UpdateAppointmentStatusRequest request)
         {

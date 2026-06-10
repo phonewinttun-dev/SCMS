@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SCMS.Domain.Features.Prescriptions;
-using SCMS.Shared.Contracts.Prescriptions;
+using SCMS.Domain.DTOs.Prescriptions;
 using SCMS.Domain.Tests.TestSupport;
 using SCMS.Shared;
 

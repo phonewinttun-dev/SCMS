@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SCMS.Domain.Security;
 using SCMS.Shared;
-using SCMS.Shared.Contracts.FollowUps;
+using SCMS.Domain.DTOs.FollowUps;
 
 namespace SCMS.Domain.Features.FollowUps
 {

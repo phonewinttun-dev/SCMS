@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
-using SCMS.Shared.Contracts.Patients;
+using SCMS.Domain.DTOs.Patients;
 using SCMS.Shared;
 
 namespace SCMS.Domain.Features.Patients
