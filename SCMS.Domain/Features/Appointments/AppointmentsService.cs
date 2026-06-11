@@ -1,9 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-// using Microsoft.Data.Sqlite;
 using SCMS.Database.Models;
 using SCMS.Domain.DTOs.Appointments;
 using SCMS.Shared;
@@ -32,6 +27,10 @@ namespace SCMS.Domain.Features.Appointments
         #region Create Appointment
         public async Task<Result<BookAppointmentResponse>> BookAppointmentAsync(BookAppointmentRequest request, int userId)
         {
+            if (request == null)
+            {
+                return Result<BookAppointmentResponse>.Failure("Request is required.");
+            }
             // Validation checks
             if (request.PatientId <= 0)
             {
@@ -183,6 +182,10 @@ namespace SCMS.Domain.Features.Appointments
 
         public async Task<Result<AppointmentDetailsResponse>> UpdateAppointmentStatusAsync(int id, UpdateAppointmentStatusRequest request)
         {
+            if (request == null)
+            {
+                return Result<AppointmentDetailsResponse>.Failure("Request is required.");
+            }
             var normalizedStatus = request.Status?.ToLower().Trim();
             if (string.IsNullOrWhiteSpace(normalizedStatus) || !AllowedStatuses.Contains(normalizedStatus))
             {
@@ -245,6 +248,10 @@ namespace SCMS.Domain.Features.Appointments
 
         public async Task<Result<AppointmentDetailsResponse>> RescheduleAppointmentAsync(int id, RescheduleAppointmentRequest request)
         {
+            if (request == null)
+            {
+                return Result<AppointmentDetailsResponse>.Failure("Request is required.");
+            }
             if (request.NewDatetime == default)
             {
                 return Result<AppointmentDetailsResponse>.Failure("New appointment date and time is required.");
@@ -306,38 +313,37 @@ namespace SCMS.Domain.Features.Appointments
         }
 
         public async Task<PagedResult<AppointmentDetailsResponse>> GetAppointmentsAsync(
-            DateTime? startDate,
-            DateTime? endDate,
-            string? status,
-            int? patientId,
+            AppointmentDetailsRequest request,
             PaginationRequest paginationRequest,
             int? currentUserId = null,
             bool isStaff = true)
         {
+            request ??= new AppointmentDetailsRequest();
+
             var query = _context.TblAppointments
                 .Include(a => a.Patient)
                 .AsQueryable();
 
-            if (startDate.HasValue)
+            if (request.StartDate.HasValue)
             {
-                query = query.Where(a => a.Datetime >= startDate.Value);
+                query = query.Where(a => a.Datetime >= request.StartDate.Value);
             }
-            if (endDate.HasValue)
+            if (request.EndDate.HasValue)
             {
-                query = query.Where(a => a.Datetime <= endDate.Value);
+                query = query.Where(a => a.Datetime <= request.EndDate.Value);
             }
-            if (!string.IsNullOrEmpty(status))
+            if (!string.IsNullOrEmpty(request.Status))
             {
-                var s = status.ToLower().Trim();
+                var s = request.Status.ToLower().Trim();
                 if (!AllowedStatuses.Contains(s))
                 {
                     return PagedResult<AppointmentDetailsResponse>.Failure("Invalid appointment status filter.");
                 }
                 query = query.Where(a => a.Status == s);
             }
-            if (patientId.HasValue)
+            if (request.PatientId.HasValue)
             {
-                query = query.Where(a => a.PatientId == patientId.Value);
+                query = query.Where(a => a.PatientId == request.PatientId.Value);
             }
             if (!isStaff && currentUserId.HasValue)
             {

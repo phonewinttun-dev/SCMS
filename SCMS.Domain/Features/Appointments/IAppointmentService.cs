@@ -11,10 +11,7 @@ namespace SCMS.Domain.Features.Appointments
         Task<Result<AppointmentDetailsResponse>> UpdateAppointmentStatusAsync(int id, UpdateAppointmentStatusRequest request);
         Task<Result<AppointmentDetailsResponse>> RescheduleAppointmentAsync(int id, RescheduleAppointmentRequest request);
         Task<PagedResult<AppointmentDetailsResponse>> GetAppointmentsAsync(
-            DateTime? startDate,
-            DateTime? endDate,
-            string? status,
-            int? patientId,
+            AppointmentDetailsRequest request,
             PaginationRequest paginationRequest,
             int? currentUserId = null,
             bool isStaff = true);

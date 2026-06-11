@@ -87,7 +87,11 @@ public class AppointmentsServiceTests
         TestData.AddAppointment(db, otherPatient, DateTime.UtcNow.AddHours(4), "confirmed");
         var service = new AppointmentsService(db.Context);
 
-        var result = await service.GetAppointmentsAsync(null, null, "confirmed", patient.PatientId, new PaginationRequest());
+        var result = await service.GetAppointmentsAsync(new AppointmentDetailsRequest
+        {
+            Status = "confirmed",
+            PatientId = patient.PatientId
+        }, new PaginationRequest());
 
         Assert.True(result.IsSuccess);
         Assert.Single(result.Data);

@@ -23,6 +23,11 @@ namespace SCMS.Domain.Features.Appointments
         [HttpPost]
         public async Task<IActionResult> BookAppointment([FromBody] BookAppointmentRequest request)
         {
+            if (request == null)
+            {
+                return BadRequest(Result.Failure("Request body is required."));
+            }
+
             var userId = User.GetUserId();
             if (!userId.HasValue)
             {
@@ -39,13 +44,9 @@ namespace SCMS.Domain.Features.Appointments
 
         [HttpGet]
         public async Task<IActionResult> GetAppointments(
-            [FromQuery] DateTime? startDate,
-            [FromQuery] DateTime? endDate,
-            [FromQuery] string? status,
-            [FromQuery] int? patientId,
+            [FromQuery] AppointmentDetailsRequest request,
             [FromQuery] PaginationRequest paginationRequest)
         {
-            // Bind fallback defaults if request properties are empty
             paginationRequest ??= new PaginationRequest();
             if (paginationRequest.PageNumber <= 0) paginationRequest.PageNumber = 1;
             if (paginationRequest.PageSize <= 0) paginationRequest.PageSize = 10;
@@ -55,8 +56,11 @@ namespace SCMS.Domain.Features.Appointments
             {
                 return Unauthorized(Result.Failure("User id is required."));
             }
-
-            var result = await _appointmentsService.GetAppointmentsAsync(startDate, endDate, status, patientId, paginationRequest, userId.Value, User.IsStaff());
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            var result = await _appointmentsService.GetAppointmentsAsync(request, paginationRequest, userId.Value, User.IsStaff());
             if (result.IsFailure)
             {
                 return BadRequest(result);
@@ -68,6 +72,18 @@ namespace SCMS.Domain.Features.Appointments
         [Authorize(Roles = "owner,admin,doctor")]
         public async Task<IActionResult> UpdateAppointmentStatus(int id, [FromBody] UpdateAppointmentStatusRequest request)
         {
+            if (id <= 0)
+            {
+                return BadRequest(Result.Failure("Invalid appointment id."));
+            }
+            if (request == null)
+            {
+                return BadRequest(Result.Failure("Request body is required."));
+            }
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             var result = await _appointmentsService.UpdateAppointmentStatusAsync(id, request);
             if (result.IsFailure)
             {
@@ -80,6 +96,18 @@ namespace SCMS.Domain.Features.Appointments
         [Authorize(Roles = "owner,admin,doctor")]
         public async Task<IActionResult> RescheduleAppointment(int id, [FromBody] RescheduleAppointmentRequest request)
         {
+            if (id <= 0)
+            {
+                return BadRequest(Result.Failure("Invalid appointment id."));
+            }
+            if (request == null)
+            {
+                return BadRequest(Result.Failure("Request body is required."));
+            }
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             var result = await _appointmentsService.RescheduleAppointmentAsync(id, request);
             if (result.IsFailure)
             {
@@ -91,6 +119,14 @@ namespace SCMS.Domain.Features.Appointments
         [HttpGet("{id}/queue-status")]
         public async Task<IActionResult> GetPatientQueueStatus(int id)
         {
+            if (id <= 0)
+            {
+                return BadRequest(Result.Failure("Invalid appointment id."));
+            }
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             var result = await _appointmentsService.GetPatientQueueStatusAsync(id);
             if (result.IsFailure)
             {
@@ -103,6 +139,10 @@ namespace SCMS.Domain.Features.Appointments
         [Authorize(Roles = "owner,admin,doctor")]
         public async Task<IActionResult> CallNextPatient()
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
             var result = await _appointmentsService.CallNextPatientAsync();
             if (result.IsFailure)
             {
