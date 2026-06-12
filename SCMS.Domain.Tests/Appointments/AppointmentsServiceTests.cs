@@ -99,20 +99,20 @@ public class AppointmentsServiceTests
         Assert.Equal(patient.PatientId, result.Data[0].PatientId);
     }
 
-    [Fact]
-    public async Task CallNextPatientAsync_ConfirmsNextPendingAppointment()
-    {
-        using var db = new TestDatabase();
-        var user = TestData.AddUser(db);
-        var patient = TestData.AddPatient(db, user);
-        var appointment = TestData.AddAppointment(db, patient, DateTime.UtcNow.Date.AddHours(10), "pending");
-        var service = new AppointmentsService(db.Context);
+    //[Fact]
+    //public async Task CallNextPatientAsync_ConfirmsNextPendingAppointment()
+    //{
+    //    using var db = new TestDatabase();
+    //    var user = TestData.AddUser(db);
+    //    var patient = TestData.AddPatient(db, user);
+    //    var appointment = TestData.AddAppointment(db, patient, DateTime.UtcNow.Date.AddHours(10), "pending");
+    //    var service = new AppointmentsService(db.Context);
 
-        var result = await service.CallNextPatientAsync();
+    //    var result = await service.CallNextPatientAsync();
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal("confirmed", result.Data!.Status);
-        Assert.Equal("confirmed", (await db.Context.TblAppointments.FindAsync(appointment.Id))!.Status);
-        Assert.Contains("It's Your Turn", db.Context.TblNotifications.Single().Title);
-    }
+    //    Assert.True(result.IsSuccess);
+    //    Assert.Equal("confirmed", result.Data!.Status);
+    //    Assert.Equal("confirmed", (await db.Context.TblAppointments.FindAsync(appointment.Id))!.Status);
+    //    Assert.Contains("It's Your Turn", db.Context.TblNotifications.Single().Title);
+    //}
 }

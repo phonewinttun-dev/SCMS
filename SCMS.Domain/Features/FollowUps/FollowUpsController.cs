@@ -11,9 +11,9 @@ namespace SCMS.Domain.Features.FollowUps
     [Route("api/[controller]")]
     public class FollowUpsController : ControllerBase
     {
-        private readonly FollowUpService _followUpService;
+        private readonly IFollowUpService _followUpService;
 
-        public FollowUpsController(FollowUpService followUpService)
+        public FollowUpsController(IFollowUpService followUpService)
         {
             _followUpService = followUpService;
         }

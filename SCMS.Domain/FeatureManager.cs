@@ -56,7 +56,7 @@ namespace SCMS.Domain
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<DashboardService>();
             builder.Services.AddScoped<DiseaseService>();
-            builder.Services.AddScoped<FollowUpService>();
+            builder.Services.AddScoped<IFollowUpService, FollowUpService>();
             builder.Services.AddScoped<MedicineService>();
             builder.Services.AddScoped<NotificationService>();
             builder.Services.AddScoped<PatientService>();

@@ -135,20 +135,20 @@ namespace SCMS.Domain.Features.Appointments
             return Ok(result);
         }
 
-        [HttpPost("call-next")]
-        [Authorize(Roles = "owner,admin,doctor")]
-        public async Task<IActionResult> CallNextPatient()
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest();
-            }
-            var result = await _appointmentsService.CallNextPatientAsync();
-            if (result.IsFailure)
-            {
-                return BadRequest(result);
-            }
-            return Ok(result);
-        }
+        //[HttpPost("call-next")]
+        //[Authorize(Roles = "owner,admin,doctor")]
+        //public async Task<IActionResult> CallNextPatient()
+        //{
+        //    if (!ModelState.IsValid)
+        //    {
+        //        return BadRequest();
+        //    }
+        //    var result = await _appointmentsService.CallNextPatientAsync();
+        //    if (result.IsFailure)
+        //    {
+        //        return BadRequest(result);
+        //    }
+        //    return Ok(result);
+        //}
     }
 }
