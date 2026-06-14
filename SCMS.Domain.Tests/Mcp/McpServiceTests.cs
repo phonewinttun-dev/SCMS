@@ -85,7 +85,7 @@ namespace SCMS.Domain.Tests.Mcp
                 MobileNo = "09979991111",
                 DateOfBirth = new DateOnly(1985, 5, 20),
                 Gender = "male",
-                Address = "{}",
+                ActualAddress = "{}",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DeleteFlag = false
@@ -132,7 +132,7 @@ namespace SCMS.Domain.Tests.Mcp
                 MobileNo = "09979992222",
                 DateOfBirth = new DateOnly(1990, 8, 15),
                 Gender = "female",
-                Address = "{}",
+                ActualAddress = "{}",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DeleteFlag = false
@@ -178,7 +178,7 @@ namespace SCMS.Domain.Tests.Mcp
                 MobileNo = "09979993333",
                 DateOfBirth = new DateOnly(1995, 10, 5),
                 Gender = "female",
-                Address = "{}",
+                ActualAddress = "{}",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DeleteFlag = false
@@ -236,7 +236,7 @@ namespace SCMS.Domain.Tests.Mcp
                 MobileNo = "09979994444",
                 DateOfBirth = new DateOnly(1980, 1, 1),
                 Gender = "male",
-                Address = "{}",
+                ActualAddress = "{}",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DeleteFlag = false
@@ -310,7 +310,7 @@ namespace SCMS.Domain.Tests.Mcp
                 MobileNo = "09979995555",
                 DateOfBirth = new DateOnly(1975, 4, 12),
                 Gender = "male",
-                Address = "{}",
+                ActualAddress = "{}",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DeleteFlag = false
@@ -368,7 +368,7 @@ namespace SCMS.Domain.Tests.Mcp
                 MobileNo = "09979996666",
                 DateOfBirth = new DateOnly(1988, 3, 24),
                 Gender = "female",
-                Address = "{}",
+                ActualAddress = "{}",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DeleteFlag = false
@@ -426,7 +426,7 @@ namespace SCMS.Domain.Tests.Mcp
                 MobileNo = "09979997777",
                 DateOfBirth = new DateOnly(1992, 6, 22),
                 Gender = "female",
-                Address = "{}",
+                ActualAddress = "{}",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DeleteFlag = false
@@ -482,7 +482,7 @@ namespace SCMS.Domain.Tests.Mcp
                 MobileNo = "09979998888",
                 DateOfBirth = new DateOnly(1990, 11, 1),
                 Gender = "male",
-                Address = "{}",
+                ActualAddress = "{}",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DeleteFlag = false
@@ -537,7 +537,7 @@ namespace SCMS.Domain.Tests.Mcp
                 MobileNo = "09979999999",
                 DateOfBirth = new DateOnly(1970, 1, 1),
                 Gender = "male",
-                Address = "{}",
+                ActualAddress = "{}",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DeleteFlag = false
@@ -604,7 +604,7 @@ namespace SCMS.Domain.Tests.Mcp
                 MobileNo = "09979998889",
                 DateOfBirth = new DateOnly(1972, 2, 2),
                 Gender = "male",
-                Address = "{}",
+                ActualAddress = "{}",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DeleteFlag = false
@@ -664,7 +664,7 @@ namespace SCMS.Domain.Tests.Mcp
                 FamilyHistory = "None",
                 VaccinationHistory = "Flu vaccine 2025"
             };
-            var serializedAddress = System.Text.Json.JsonSerializer.Serialize(addressMeta);
+            var serializedActualAddress = System.Text.Json.JsonSerializer.Serialize(addressMeta);
 
             var patient = new TblPatient
             {
@@ -673,7 +673,7 @@ namespace SCMS.Domain.Tests.Mcp
                 MobileNo = "09979998811",
                 DateOfBirth = new DateOnly(1994, 6, 18),
                 Gender = "male",
-                Address = serializedAddress,
+                ActualAddress = "",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DeleteFlag = false

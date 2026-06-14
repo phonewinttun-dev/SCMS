@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
 using SCMS.Domain.DTOs.Dashboards;
 using SCMS.Domain.DTOs.Appointments;
-using SCMS.Domain.DTOs.Patients;
+using SCMS.Domain.DTOs;
 using SCMS.Domain.DTOs.Prescriptions;
 using SCMS.Shared;
 
@@ -23,28 +23,7 @@ namespace SCMS.Domain.Features.Dashboards
             _context = context;
         }
 
-        // Helper structure for patient address serialization
-        public class PatientAddressMetadata
-        {
-            public string? ActualAddress { get; set; }
-            public string? Allergies { get; set; }
-            public string? ChronicConditions { get; set; }
-            public string? PastSurgeries { get; set; }
-            public string? FamilyHistory { get; set; }
-            public string? VaccinationHistory { get; set; }
-        }
-
-        // Helper structure for vitals serialization
-        public class PrescriptionNotesMetadata
-        {
-            public string? ActualNotes { get; set; }
-            public double? TemperatureC { get; set; }
-            public int? PulseBpm { get; set; }
-            public int? Spo2Percent { get; set; }
-            public double? HeightCm { get; set; }
-            public double? Bmi { get; set; }
-            public string? LabTestRequests { get; set; }
-        }
+        // Metadata structures removed
 
         public async Task<Result<DoctorDashboardResponse>> GetDoctorDashboardAsync()
         {
@@ -260,7 +239,6 @@ namespace SCMS.Domain.Features.Dashboards
 
         private PatientProfileResponse MapPatientToResponse(TblPatient p)
         {
-            var addressMeta = ParsePatientAddress(p.Address);
             return new PatientProfileResponse
             {
                 PatientId = p.PatientId,
@@ -271,20 +249,18 @@ namespace SCMS.Domain.Features.Dashboards
                 DateOfBirth = p.DateOfBirth,
                 Gender = p.Gender,
                 BloodType = p.BloodType,
-                ActualAddress = addressMeta.ActualAddress,
-                Allergies = addressMeta.Allergies,
-                ChronicConditions = addressMeta.ChronicConditions,
-                PastSurgeries = addressMeta.PastSurgeries,
-                FamilyHistory = addressMeta.FamilyHistory,
-                VaccinationHistory = addressMeta.VaccinationHistory,
+                ActualAddress = p.ActualAddress,
+                Allergies = p.Allergies,
+                ChronicConditions = p.ChronicConditions,
+                PastSurgeries = p.PastSurgeries,
+                FamilyHistory = p.FamilyHistory,
+                VaccinationHistory = p.VaccinationHistory,
                 CreatedAt = p.CreatedAt ?? DateTime.UtcNow
             };
         }
 
         private PrescriptionResponse MapPrescriptionToResponse(TblPrescription p)
         {
-            var notesMeta = ParsePrescriptionNotes(p.Notes);
-
             var itemsList = p.TblPrescriptionItems.Select(item => new PrescriptionItemResponseDto
             {
                 Id = item.Id,
@@ -307,44 +283,18 @@ namespace SCMS.Domain.Features.Dashboards
                 WeightKg = p.WeightKg,
                 BloodPressureSystolic = p.BloodPressureSystolic,
                 BloodPressureDiastolic = p.BloodPressureDiastolic,
-                Notes = notesMeta.ActualNotes,
-                TemperatureC = notesMeta.TemperatureC,
-                PulseBpm = notesMeta.PulseBpm,
-                Spo2Percent = notesMeta.Spo2Percent,
-                HeightCm = notesMeta.HeightCm,
-                Bmi = notesMeta.Bmi,
-                LabTestRequests = notesMeta.LabTestRequests,
+                Notes = p.ActualNotes,
+                TemperatureC = p.TemperatureC,
+                PulseBpm = p.PulseBpm,
+                Spo2Percent = p.Spo2Percent,
+                HeightCm = p.HeightCm,
+                Bmi = p.Bmi,
+                LabTestRequests = p.LabTestRequests,
                 Items = itemsList,
                 CreatedAt = p.CreatedAt ?? DateTime.UtcNow
             };
         }
 
-        private PatientAddressMetadata ParsePatientAddress(string? address)
-        {
-            if (string.IsNullOrEmpty(address)) return new PatientAddressMetadata();
-            try
-            {
-                if (address.TrimStart().StartsWith("{"))
-                {
-                    return JsonSerializer.Deserialize<PatientAddressMetadata>(address) ?? new PatientAddressMetadata();
-                }
-            }
-            catch { }
-            return new PatientAddressMetadata { ActualAddress = address };
-        }
-
-        private PrescriptionNotesMetadata ParsePrescriptionNotes(string? notes)
-        {
-            if (string.IsNullOrEmpty(notes)) return new PrescriptionNotesMetadata();
-            try
-            {
-                if (notes.TrimStart().StartsWith("{"))
-                {
-                    return JsonSerializer.Deserialize<PrescriptionNotesMetadata>(notes) ?? new PrescriptionNotesMetadata();
-                }
-            }
-            catch { }
-            return new PrescriptionNotesMetadata { ActualNotes = notes };
-        }
+        // JSON parsing methods removed
     }
 }

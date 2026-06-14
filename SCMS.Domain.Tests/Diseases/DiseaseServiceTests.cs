@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
 using SCMS.Domain.Features.Diseases;
 using SCMS.Shared;
-using SCMS.Domain.DTOs.Diseases;
+using SCMS.Domain.DTOs;
 using SCMS.Domain.Tests.TestSupport;
 using Xunit;
 
@@ -221,7 +221,7 @@ namespace SCMS.Domain.Tests.Diseases
             await _context.SaveChangesAsync();
 
             // Act
-            var result = await _diseaseService.GetDiseasesAsync(string.Empty, new PaginationRequest { PageNumber = 1, PageSize = 10 });
+            var result = await _diseaseService.GetDiseasesAsync(new DiseaseRequest { PageNumber = 1, PageSize = 10 });
 
             // Assert
             Assert.True(result.IsSuccess);
@@ -254,7 +254,7 @@ namespace SCMS.Domain.Tests.Diseases
             await _context.SaveChangesAsync();
 
             // Act
-            var result = await _diseaseService.GetDiseasesAsync("diabetes", new PaginationRequest { PageNumber = 1, PageSize = 10 });
+            var result = await _diseaseService.GetDiseasesAsync(new DiseaseRequest { Query = "diabetes", PageNumber = 1, PageSize = 10 });
 
             // Assert
             Assert.True(result.IsSuccess);
@@ -286,7 +286,7 @@ namespace SCMS.Domain.Tests.Diseases
             await _context.SaveChangesAsync();
 
             // Act
-            var result = await _diseaseService.GetDiseasesAsync(string.Empty, new PaginationRequest { PageNumber = 1, PageSize = 10 });
+            var result = await _diseaseService.GetDiseasesAsync(new DiseaseRequest { PageNumber = 1, PageSize = 10 });
 
             // Assert
             Assert.True(result.IsSuccess);

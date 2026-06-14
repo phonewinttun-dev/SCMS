@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using SCMS.Domain.Features.Patients;
-using SCMS.Domain.DTOs.Patients;
+using SCMS.Domain.DTOs;
 using SCMS.Domain.Tests.TestSupport;
 using SCMS.Shared;
 
@@ -84,7 +84,7 @@ public class PatientServiceTests
         var disease = TestData.AddDisease(db, "Flu");
         var medicine = TestData.AddMedicine(db, "Cetirizine");
         var batch = TestData.AddBatch(db, medicine);
-        var notes = JsonSerializer.Serialize(new PatientService.PrescriptionNotesMetadata
+        var notes = JsonSerializer.Serialize(new 
         {
             ActualNotes = "Rest well",
             LabTestRequests = "CBC"
@@ -107,16 +107,16 @@ public class PatientServiceTests
     {
         using var db = new TestDatabase();
         var user = TestData.AddUser(db);
-        var address = JsonSerializer.Serialize(new PatientService.PatientAddressMetadata
+        var address = JsonSerializer.Serialize(new 
         {
             Allergies = "Penicillin",
             ChronicConditions = "Diabetes"
         });
-        var patient = TestData.AddPatient(db, user, address: address);
+        var patient = TestData.AddPatient(db, user, ActualAddress: address);
         var appointment = TestData.AddAppointment(db, patient, DateTime.UtcNow.AddDays(-1), "completed");
         var disease = TestData.AddDisease(db);
         var medicine = TestData.AddMedicine(db);
-        var notes = JsonSerializer.Serialize(new PatientService.PrescriptionNotesMetadata
+        var notes = JsonSerializer.Serialize(new 
         {
             TemperatureC = 37.5,
             PulseBpm = 88,

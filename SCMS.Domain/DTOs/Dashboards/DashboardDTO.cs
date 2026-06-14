@@ -1,5 +1,5 @@
 using SCMS.Domain.DTOs.Appointments;
-using SCMS.Domain.DTOs.Patients;
+using SCMS.Domain.DTOs;
 using SCMS.Domain.DTOs.Prescriptions;
 using System.Collections.Generic;
 

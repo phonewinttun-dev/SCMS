@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SCMS.Database.Models;
@@ -19,7 +19,19 @@ public partial class TblPrescription
 
     public int? BloodPressureDiastolic { get; set; }
 
-    public string? Notes { get; set; }
+    public string? ActualNotes { get; set; }
+
+    public double? TemperatureC { get; set; }
+
+    public int? PulseBpm { get; set; }
+
+    public int? Spo2Percent { get; set; }
+
+    public double? HeightCm { get; set; }
+
+    public double? Bmi { get; set; }
+
+    public string? LabTestRequests { get; set; }
 
     public DateTime? CreatedAt { get; set; }
 

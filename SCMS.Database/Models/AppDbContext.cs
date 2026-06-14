@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
@@ -283,7 +283,12 @@ public partial class AppDbContext : DbContext
             entity.ToTable("tbl_patient");
 
             entity.Property(e => e.PatientId).HasColumnName("patient_id");
-            entity.Property(e => e.Address).HasColumnName("address");
+            entity.Property(e => e.ActualAddress).HasColumnName("actual_address");
+            entity.Property(e => e.Allergies).HasColumnName("allergies");
+            entity.Property(e => e.ChronicConditions).HasColumnName("chronic_conditions");
+            entity.Property(e => e.PastSurgeries).HasColumnName("past_surgeries");
+            entity.Property(e => e.FamilyHistory).HasColumnName("family_history");
+            entity.Property(e => e.VaccinationHistory).HasColumnName("vaccination_history");
             entity.Property(e => e.BloodType)
                 .HasMaxLength(5)
                 .HasColumnName("blood_type");
@@ -397,7 +402,13 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("created_at");
             entity.Property(e => e.DeleteFlag).HasColumnName("delete_flag");
             entity.Property(e => e.DiseaseId).HasColumnName("disease_id");
-            entity.Property(e => e.Notes).HasColumnName("notes");
+            entity.Property(e => e.ActualNotes).HasColumnName("actual_notes");
+            entity.Property(e => e.TemperatureC).HasColumnName("temperature_c");
+            entity.Property(e => e.PulseBpm).HasColumnName("pulse_bpm");
+            entity.Property(e => e.Spo2Percent).HasColumnName("spo2_percent");
+            entity.Property(e => e.HeightCm).HasColumnName("height_cm");
+            entity.Property(e => e.Bmi).HasColumnName("bmi");
+            entity.Property(e => e.LabTestRequests).HasColumnName("lab_test_requests");
             entity.Property(e => e.PatientId).HasColumnName("patient_id");
             entity.Property(e => e.UpdatedAt)
                 .HasColumnType("timestamp without time zone")

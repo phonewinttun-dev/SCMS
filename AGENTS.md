@@ -57,14 +57,14 @@ Features/
 ```
 
 - **Controllers are in `SCMS.Domain`**, not `SCMS.Api`. The API project loads them via `AddApplicationPart(typeof(FeatureManager).Assembly)`.
-- **Request/Response DTOs are in `SCMS.Shared/Contracts/{FeatureName}/`**, not next to the service. This lets the Blazor WASM client share the same types.
+- **Request/Response DTOs are in `SCMS.Domain/DTOs/{FeatureName}/`**, not in Shared. (Note: Blazor WASM frontend will need to duplicate these or use a different mechanism).
 - **Service registration**: every new service must be manually added to `FeatureManager.AddScmsFeatureServices()`.
 - **Controller registration**: happens automatically via the assembly scan, no manual step needed.
 
 ### Adding a new feature checklist
 
 1. Create `SCMS.Domain/Features/{Name}/{Name}Service.cs` and `{Name}Controller.cs`
-2. Create DTOs in `SCMS.Shared/Contracts/{Name}/`
+2. Create DTOs in `SCMS.Domain/DTOs/{Name}/`
 3. Register the service in `FeatureManager.AddScmsFeatureServices()`
 4. Mirror the folder in `SCMS.Domain.Tests/{Name}/`
 

@@ -32,7 +32,7 @@ public static class TestData
         return user;
     }
 
-    public static TblPatient AddPatient(TestDatabase db, TblUser user, string name = "Patient", bool deleted = false, string? address = null)
+    public static TblPatient AddPatient(TestDatabase db, TblUser user, string name = "Patient", bool deleted = false, string? ActualAddress = null)
     {
         var patient = new TblPatient
         {
@@ -43,7 +43,7 @@ public static class TestData
             DateOfBirth = new DateOnly(1990, 1, 1),
             Gender = "female",
             BloodType = "O+",
-            Address = address,
+            ActualAddress = "",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             DeleteFlag = deleted
@@ -61,7 +61,7 @@ public static class TestData
         TblPatient patient,
         DateTime? datetime = null,
         string status = "pending",
-        string? notes = "Consultation",
+        string? Notes = "Consultation",
         string? appointmentCode = null)
     {
         var code = appointmentCode ?? $"APT-{Interlocked.Increment(ref _appointmentSeq):D3}";
@@ -71,7 +71,7 @@ public static class TestData
             PatientId = patient.PatientId,
             Datetime = datetime ?? DateTime.UtcNow.AddHours(2),
             Status = status,
-            Notes = notes,
+            Notes = "",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -161,7 +161,7 @@ public static class TestData
         TblPatient patient,
         TblAppointment appointment,
         TblDisease? disease = null,
-        string? notes = null,
+        string? Notes = null,
         DateTime? createdAt = null)
     {
         var prescription = new TblPrescription
@@ -172,7 +172,7 @@ public static class TestData
             WeightKg = 60,
             BloodPressureSystolic = 120,
             BloodPressureDiastolic = 80,
-            Notes = notes,
+            ActualNotes = "",
             CreatedAt = createdAt ?? DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             DeleteFlag = false

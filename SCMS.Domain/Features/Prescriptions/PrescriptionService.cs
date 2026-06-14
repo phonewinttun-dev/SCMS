@@ -25,28 +25,7 @@ namespace SCMS.Domain.Features.Prescriptions
             _notificationService = notificationService;
         }
 
-        // Helper structure for serialization in Notes
-        public class PrescriptionNotesMetadata
-        {
-            public string? ActualNotes { get; set; }
-            public double? TemperatureC { get; set; }
-            public int? PulseBpm { get; set; }
-            public int? Spo2Percent { get; set; }
-            public double? HeightCm { get; set; }
-            public double? Bmi { get; set; }
-            public string? LabTestRequests { get; set; }
-        }
-
-        // Helper structure for Patient medical data serialized in Address
-        public class PatientAddressMetadata
-        {
-            public string? ActualAddress { get; set; }
-            public string? Allergies { get; set; }
-            public string? ChronicConditions { get; set; }
-            public string? PastSurgeries { get; set; }
-            public string? FamilyHistory { get; set; }
-            public string? VaccinationHistory { get; set; }
-        }
+        // Metadata structures removed as they are mapped to native columns
 
         public async Task<Result<PrescriptionResponse>> CreatePrescriptionAsync(CreatePrescriptionRequest request)
         {
@@ -115,10 +94,9 @@ namespace SCMS.Domain.Features.Prescriptions
             var warnings = new List<string>();
 
             // 1. Check Allergies
-            var patientMedicalInfo = ParsePatientAddress(patient.Address);
-            if (!string.IsNullOrEmpty(patientMedicalInfo.Allergies))
+            if (!string.IsNullOrEmpty(patient.Allergies))
             {
-                var allergyList = patientMedicalInfo.Allergies.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                var allergyList = patient.Allergies.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(a => a.Trim().ToLower())
                     .ToList();
 
@@ -262,25 +240,13 @@ namespace SCMS.Domain.Features.Prescriptions
                 }
             }
 
-            // 4. Calculate BMI & Serialize extra vitals into Notes
+            // 4. Calculate BMI
             double? bmi = null;
             if (request.WeightKg.HasValue && request.HeightCm.HasValue && request.HeightCm.Value > 0)
             {
                 var heightMeters = request.HeightCm.Value / 100.0;
                 bmi = Math.Round(request.WeightKg.Value / (heightMeters * heightMeters), 2);
             }
-
-            var notesMeta = new PrescriptionNotesMetadata
-            {
-                ActualNotes = request.Notes,
-                TemperatureC = request.TemperatureC,
-                PulseBpm = request.PulseBpm,
-                Spo2Percent = request.Spo2Percent,
-                HeightCm = request.HeightCm,
-                Bmi = bmi,
-                LabTestRequests = request.LabTestRequests
-            };
-            var serializedNotes = JsonSerializer.Serialize(notesMeta);
 
             // Save prescription
             var prescription = new TblPrescription
@@ -291,7 +257,13 @@ namespace SCMS.Domain.Features.Prescriptions
                 WeightKg = request.WeightKg,
                 BloodPressureSystolic = request.BloodPressureSystolic,
                 BloodPressureDiastolic = request.BloodPressureDiastolic,
-                Notes = serializedNotes,
+                ActualNotes = request.Notes,
+                TemperatureC = request.TemperatureC,
+                PulseBpm = request.PulseBpm,
+                Spo2Percent = request.Spo2Percent,
+                HeightCm = request.HeightCm,
+                Bmi = bmi,
+                LabTestRequests = request.LabTestRequests,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DeleteFlag = false
@@ -384,19 +356,7 @@ namespace SCMS.Domain.Features.Prescriptions
                 return Result<PrescriptionResponse>.Failure("Prescription not found.");
             }
 
-            // Deserialize Notes
-            var notesMeta = new PrescriptionNotesMetadata();
-            try
-            {
-                if (!string.IsNullOrEmpty(p.Notes))
-                {
-                    notesMeta = JsonSerializer.Deserialize<PrescriptionNotesMetadata>(p.Notes) ?? new PrescriptionNotesMetadata();
-                }
-            }
-            catch
-            {
-                notesMeta.ActualNotes = p.Notes; // Fallback
-            }
+            // Notes deserialization removed
 
             var itemResponseDtos = new List<PrescriptionItemResponseDto>();
             foreach (var item in p.TblPrescriptionItems)
@@ -440,13 +400,13 @@ namespace SCMS.Domain.Features.Prescriptions
                 WeightKg = p.WeightKg,
                 BloodPressureSystolic = p.BloodPressureSystolic,
                 BloodPressureDiastolic = p.BloodPressureDiastolic,
-                Notes = notesMeta.ActualNotes,
-                TemperatureC = notesMeta.TemperatureC,
-                PulseBpm = notesMeta.PulseBpm,
-                Spo2Percent = notesMeta.Spo2Percent,
-                HeightCm = notesMeta.HeightCm,
-                Bmi = notesMeta.Bmi,
-                LabTestRequests = notesMeta.LabTestRequests,
+                Notes = p.ActualNotes,
+                TemperatureC = p.TemperatureC,
+                PulseBpm = p.PulseBpm,
+                Spo2Percent = p.Spo2Percent,
+                HeightCm = p.HeightCm,
+                Bmi = p.Bmi,
+                LabTestRequests = p.LabTestRequests,
                 Items = itemResponseDtos,
                 CreatedAt = p.CreatedAt ?? DateTime.UtcNow
             });
@@ -704,22 +664,6 @@ namespace SCMS.Domain.Features.Prescriptions
                 .Distinct(StringComparer.OrdinalIgnoreCase);
         }
 
-        private PatientAddressMetadata ParsePatientAddress(string? address)
-        {
-            if (string.IsNullOrEmpty(address)) return new PatientAddressMetadata();
-            try
-            {
-                if (address.TrimStart().StartsWith("{"))
-                {
-                    return JsonSerializer.Deserialize<PatientAddressMetadata>(address) ?? new PatientAddressMetadata();
-                }
-            }
-            catch
-            {
-                // Fallback if address is plain text
-            }
-
-            return new PatientAddressMetadata { ActualAddress = address };
-        }
+        // ParsePatientAddress removed
     }
 }

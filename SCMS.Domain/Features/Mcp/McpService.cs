@@ -476,26 +476,8 @@ namespace SCMS.Domain.Features.Mcp
 
             if (patient == null) return new { error = "Patient not found." };
 
-            string allergies = "No known allergies";
-            string chronicConditions = "None";
-
-            if (!string.IsNullOrWhiteSpace(patient.Address))
-            {
-                try
-                {
-                    using var doc = JsonDocument.Parse(patient.Address);
-                    var root = doc.RootElement;
-                    if (root.TryGetProperty("Allergies", out var allergyProp))
-                    {
-                        allergies = allergyProp.GetString() ?? allergies;
-                    }
-                    if (root.TryGetProperty("ChronicConditions", out var chronicProp))
-                    {
-                        chronicConditions = chronicProp.GetString() ?? chronicConditions;
-                    }
-                }
-                catch { }
-            }
+            string allergies = string.IsNullOrWhiteSpace(patient.Allergies) ? "No known allergies" : patient.Allergies;
+            string chronicConditions = string.IsNullOrWhiteSpace(patient.ChronicConditions) ? "None" : patient.ChronicConditions;
 
             return new
             {
@@ -555,7 +537,7 @@ namespace SCMS.Domain.Features.Mcp
             {
                 prescriptionId = p.Id,
                 date = p.CreatedAt?.ToString("dd-MM-yyyy") ?? "Unknown",
-                notes = p.Notes,
+                notes = p.ActualNotes,
                 items = p.TblPrescriptionItems
                     .Where(pi => pi.DeleteFlag != true)
                     .Select(pi => new
@@ -1494,7 +1476,7 @@ namespace SCMS.Domain.Features.Mcp
                 return new { error = "Patient not found. Please provide a valid patientId or patientName." };
             }
 
-            var addressMeta = ParsePatientAddress(patient.Address);
+            var addressMeta = patient;
 
             // 1. Visit Metrics (Pillar 1 Journey & Pillar 2 Adherence)
             var appointments = await _context.TblAppointments
@@ -1622,7 +1604,6 @@ namespace SCMS.Domain.Features.Mcp
             var vitalsList = new List<object>();
             foreach (var p in prescriptions)
             {
-                var notesMeta = ParsePrescriptionNotes(p.Notes);
                 vitalsList.Add(new
                 {
                     date = p.CreatedAt?.ToString("dd-MM-yyyy") ?? "Unknown",
@@ -1630,10 +1611,10 @@ namespace SCMS.Domain.Features.Mcp
                     bp = p.BloodPressureSystolic.HasValue && p.BloodPressureDiastolic.HasValue 
                         ? $"{p.BloodPressureSystolic}/{p.BloodPressureDiastolic}" 
                         : null,
-                    temp = notesMeta.TemperatureC,
-                    pulse = notesMeta.PulseBpm,
-                    spo2 = notesMeta.Spo2Percent,
-                    bmi = notesMeta.Bmi
+                    temp = p.TemperatureC,
+                    pulse = p.PulseBpm,
+                    spo2 = p.Spo2Percent,
+                    bmi = p.Bmi
                 });
             }
             var lastVitals = vitalsList.OrderByDescending(v => ((dynamic)v).date).FirstOrDefault();

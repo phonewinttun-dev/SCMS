@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 
-using SCMS.Domain.DTOs.Patients;
+using SCMS.Domain.DTOs;
 using SCMS.Domain.DTOs.Payments;
 using SCMS.Domain.DTOs.Prescriptions;
 using SCMS.Domain.DTOs.Reports;
