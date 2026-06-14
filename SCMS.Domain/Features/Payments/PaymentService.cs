@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
 using SCMS.Domain.DTOs.Payments;
 using SCMS.Shared;
+using SCMS.Domain.DTOs.Notifications;
 using SCMS.Domain.Features.Notifications;
 
 namespace SCMS.Domain.Features.Payments
@@ -96,11 +97,13 @@ namespace SCMS.Domain.Features.Payments
                 // Send notification
                 if (_notificationService != null)
                 {
-                    await _notificationService.CreateNotificationAsync(
-                        appointment.Patient.UserId,
-                        "Payment Successful",
-                        $"Gateway payment of {payment.Amount:N2} received. Your appointment (Code: {appointment.AppointmentCode}) is now Confirmed.",
-                        $"/appointments/{appointment.Id}");
+                    await _notificationService.CreateNotificationAsync(new CreateNotificationRequest
+                    {
+                        UserId = appointment.Patient.UserId,
+                        Title = "Payment Successful",
+                        Description = $"Gateway payment of {payment.Amount:N2} received. Your appointment (Code: {appointment.AppointmentCode}) is now Confirmed.",
+                        ActionRoute = $"/appointments/{appointment.Id}"
+                    });
                 }
                 else
                 {
@@ -192,11 +195,13 @@ namespace SCMS.Domain.Features.Payments
             // Send notification to patient
             if (_notificationService != null)
             {
-                await _notificationService.CreateNotificationAsync(
-                    appointment.Patient.UserId,
-                    "Payment Proof Uploaded",
-                    $"Your manual transfer proof (Amount: {request.Amount:N2}) is uploaded. It will be verified by clinic staff shortly.",
-                    $"/appointments/{appointment.Id}");
+                await _notificationService.CreateNotificationAsync(new CreateNotificationRequest
+                {
+                    UserId = appointment.Patient.UserId,
+                    Title = "Payment Proof Uploaded",
+                    Description = $"Your manual transfer proof (Amount: {request.Amount:N2}) is uploaded. It will be verified by clinic staff shortly.",
+                    ActionRoute = $"/appointments/{appointment.Id}"
+                });
             }
             else
             {
@@ -242,11 +247,13 @@ namespace SCMS.Domain.Features.Payments
             // Notify patient
             if (_notificationService != null)
             {
-                await _notificationService.CreateNotificationAsync(
-                    payment.Appointment.Patient.UserId,
-                    "Payment Verified",
-                    $"Your manual payment proof of {payment.Amount:N2} has been verified and approved. Your appointment (Code: {payment.Appointment.AppointmentCode}) is now Confirmed.",
-                    $"/appointments/{payment.Appointment.Id}");
+                await _notificationService.CreateNotificationAsync(new CreateNotificationRequest
+                {
+                    UserId = payment.Appointment.Patient.UserId,
+                    Title = "Payment Verified",
+                    Description = $"Your manual payment proof of {payment.Amount:N2} has been verified and approved. Your appointment (Code: {payment.Appointment.AppointmentCode}) is now Confirmed.",
+                    ActionRoute = $"/appointments/{payment.Appointment.Id}"
+                });
             }
             else
             {

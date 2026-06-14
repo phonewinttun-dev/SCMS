@@ -19,11 +19,11 @@ namespace SCMS.Domain.Features.Mcp
     [Authorize(Roles = "owner,admin,doctor")]
     public class McpController : ControllerBase
     {
-        private readonly McpService _mcpService;
+        private readonly IMcpService _mcpService;
         private readonly IConfiguration _configuration;
         private static readonly HttpClient HttpClient = new();
 
-        public McpController(McpService mcpService, IConfiguration configuration)
+        public McpController(IMcpService mcpService, IConfiguration configuration)
         {
             _mcpService = mcpService;
             _configuration = configuration;

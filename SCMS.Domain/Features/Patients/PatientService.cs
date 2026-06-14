@@ -8,15 +8,22 @@ using SCMS.Database.Models;
 using SCMS.Domain.DTOs;
 using SCMS.Shared;
 
+using SCMS.Domain.Features.Appointments;
+using SCMS.Domain.Features.Prescriptions;
+
 namespace SCMS.Domain.Features.Patients
 {
     public class PatientService : IPatientService
     {
         private readonly AppDbContext _context;
+        private readonly IAppointmentService _appointmentService;
+        private readonly IPrescriptionService _prescriptionService;
 
-        public PatientService(AppDbContext context)
+        public PatientService(AppDbContext context, IAppointmentService appointmentService, IPrescriptionService prescriptionService)
         {
             _context = context;
+            _appointmentService = appointmentService;
+            _prescriptionService = prescriptionService;
         }
 
         // Metadata structures removed as they are now mapped directly as columns
@@ -149,64 +156,61 @@ namespace SCMS.Domain.Features.Patients
             };
 
             // 1. Fetch Appointments
-            var appointments = await _context.TblAppointments
-                .Where(a => a.PatientId == patientId)
-                .ToListAsync();
-
-            foreach (var a in appointments)
+            var appointmentsResult = await _appointmentService.GetAllAppointmentsForPatientAsync(patientId);
+            if (appointmentsResult.IsSuccess && appointmentsResult.Data != null)
             {
-                response.Timeline.Add(new TimelineItemDto
-                {
-                    Date = a.Datetime,
-                    Type = "Appointment",
-                    Title = $"Visit scheduled ({a.Status})",
-                    Description = $"Reason/Notes: {a.Notes ?? "No notes"}",
-                    LinkedId = a.Id
-                });
-            }
-
-            // 2. Fetch Prescriptions & Vitals
-            var prescriptions = await _context.TblPrescriptions
-                .Include(p => p.Disease)
-                .Include(p => p.TblPrescriptionItems)
-                    .ThenInclude(i => i.Medicine)
-                .Where(p => p.PatientId == patientId && p.DeleteFlag != true)
-                .ToListAsync();
-
-            foreach (var p in prescriptions)
-            {
-                var diseaseName = p.Disease?.Name ?? "General Consultation";
-                var medsList = string.Join(", ", p.TblPrescriptionItems.Select(i => $"{i.Medicine.Name} ({i.Dosage} x {i.Days}d)"));
-
-                response.Timeline.Add(new TimelineItemDto
-                {
-                    Date = p.CreatedAt ?? DateTime.UtcNow,
-                    Type = "Prescription",
-                    Title = $"Prescribed for {diseaseName}",
-                    Description = $"Medicines: {medsList}",
-                    LinkedId = p.Id
-                });
-
-                response.Timeline.Add(new TimelineItemDto
-                {
-                    Date = p.CreatedAt ?? DateTime.UtcNow,
-                    Type = "Diagnosis",
-                    Title = $"Diagnosed with {diseaseName}",
-                    Description = p.ActualNotes != null && p.ActualNotes.StartsWith("{") ? "Diagnosis recorded during consultation." : (p.ActualNotes ?? "No diagnosis details"),
-                    LinkedId = p.Id
-                });
-
-                // Parse Vitals & Lab requests
-                if (!string.IsNullOrEmpty(p.LabTestRequests))
+                foreach (var a in appointmentsResult.Data)
                 {
                     response.Timeline.Add(new TimelineItemDto
                     {
-                        Date = p.CreatedAt ?? DateTime.UtcNow,
-                        Type = "Lab Request",
-                        Title = "Lab test requested",
-                        Description = $"Tests: {p.LabTestRequests}",
+                        Date = a.Datetime,
+                        Type = "Appointment",
+                        Title = $"Visit scheduled ({a.Status})",
+                        Description = $"Reason/Notes: {a.Notes ?? "No notes"}",
+                        LinkedId = a.Id
+                    });
+                }
+            }
+
+            // 2. Fetch Prescriptions & Vitals
+            var prescriptionsResult = await _prescriptionService.GetAllPrescriptionsForPatientAsync(patientId);
+            if (prescriptionsResult.IsSuccess && prescriptionsResult.Data != null)
+            {
+                foreach (var p in prescriptionsResult.Data)
+                {
+                    var diseaseName = p.DiseaseName ?? "General Consultation";
+                    var medsList = string.Join(", ", p.Items.Select(i => $"{i.MedicineName} ({i.Dosage} x {i.Days}d)"));
+
+                    response.Timeline.Add(new TimelineItemDto
+                    {
+                        Date = p.CreatedAt,
+                        Type = "Prescription",
+                        Title = $"Prescribed for {diseaseName}",
+                        Description = $"Medicines: {medsList}",
                         LinkedId = p.Id
                     });
+
+                    response.Timeline.Add(new TimelineItemDto
+                    {
+                        Date = p.CreatedAt,
+                        Type = "Diagnosis",
+                        Title = $"Diagnosed with {diseaseName}",
+                        Description = p.Notes != null && p.Notes.StartsWith("{") ? "Diagnosis recorded during consultation." : (p.Notes ?? "No diagnosis details"),
+                        LinkedId = p.Id
+                    });
+
+                    // Parse Vitals & Lab requests
+                    if (!string.IsNullOrEmpty(p.LabTestRequests))
+                    {
+                        response.Timeline.Add(new TimelineItemDto
+                        {
+                            Date = p.CreatedAt,
+                            Type = "Lab Request",
+                            Title = "Lab test requested",
+                            Description = $"Tests: {p.LabTestRequests}",
+                            LinkedId = p.Id
+                        });
+                    }
                 }
             }
 
@@ -245,40 +249,36 @@ namespace SCMS.Domain.Features.Patients
             };
 
             // Fetch prescriptions to aggregate Vitals history and Active prescriptions
-            var prescriptions = await _context.TblPrescriptions
-                .Include(p => p.Disease)
-                .Include(p => p.TblPrescriptionItems)
-                    .ThenInclude(i => i.Medicine)
-                .Where(p => p.PatientId == patientId && p.DeleteFlag != true)
-                .OrderBy(p => p.CreatedAt)
-                .ToListAsync();
-
-            foreach (var p in prescriptions)
+            var prescriptionsResult = await _prescriptionService.GetAllPrescriptionsForPatientAsync(patientId);
+            if (prescriptionsResult.IsSuccess && prescriptionsResult.Data != null)
             {
-                // Add to vitals history
-                summary.VitalsHistory.Add(new PatientVitalsHistoryDto
+                foreach (var p in prescriptionsResult.Data)
                 {
-                    Date = p.CreatedAt ?? DateTime.UtcNow,
-                    WeightKg = p.WeightKg,
-                    BloodPressureSystolic = p.BloodPressureSystolic,
-                    BloodPressureDiastolic = p.BloodPressureDiastolic,
-                    TemperatureC = p.TemperatureC,
-                    PulseBpm = p.PulseBpm,
-                    Spo2Percent = p.Spo2Percent,
-                    HeightCm = p.HeightCm,
-                    Bmi = p.Bmi
-                });
-
-                // Add to active prescriptions if prescribed within past 30 days (as a heuristic)
-                if (p.CreatedAt >= DateTime.UtcNow.AddDays(-30))
-                {
-                    summary.ActivePrescriptions.Add(new ActivePrescriptionSummaryDto
+                    // Add to vitals history
+                    summary.VitalsHistory.Add(new PatientVitalsHistoryDto
                     {
-                        PrescriptionId = p.Id,
-                        Date = p.CreatedAt ?? DateTime.UtcNow,
-                        DiseaseName = p.Disease?.Name ?? "General Consultation",
-                        Medicines = p.TblPrescriptionItems.Select(i => i.Medicine.Name).ToList()
+                        Date = p.CreatedAt,
+                        WeightKg = p.WeightKg,
+                        BloodPressureSystolic = p.BloodPressureSystolic,
+                        BloodPressureDiastolic = p.BloodPressureDiastolic,
+                        TemperatureC = p.TemperatureC,
+                        PulseBpm = p.PulseBpm,
+                        Spo2Percent = p.Spo2Percent,
+                        HeightCm = p.HeightCm,
+                        Bmi = p.Bmi
                     });
+
+                    // Add to active prescriptions if prescribed within past 30 days (as a heuristic)
+                    if (p.CreatedAt >= DateTime.UtcNow.AddDays(-30))
+                    {
+                        summary.ActivePrescriptions.Add(new ActivePrescriptionSummaryDto
+                        {
+                            PrescriptionId = p.Id,
+                            Date = p.CreatedAt,
+                            DiseaseName = p.DiseaseName ?? "General Consultation",
+                            Medicines = p.Items.Select(i => i.MedicineName).ToList()
+                        });
+                    }
                 }
             }
 

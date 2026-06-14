@@ -16,7 +16,7 @@ public class PatientServiceTests
         var user = TestData.AddUser(db);
         var otherUser = TestData.AddUser(db);
         TestData.AddPatient(db, otherUser, "Hidden Patient");
-        var service = new PatientService(db.Context);
+        var apptService = new SCMS.Domain.Features.Appointments.AppointmentsService(db.Context); var presService = new SCMS.Domain.Features.Prescriptions.PrescriptionService(db.Context); var service = new PatientService(db.Context, apptService, presService);
 
         var createResult = await service.AddPatientProfileAsync(new PatientProfileRequest
         {
@@ -46,7 +46,7 @@ public class PatientServiceTests
         TestData.AddPatient(db, firstUser, "Aye Aye");
         TestData.AddPatient(db, secondUser, "Mg Mg");
         TestData.AddPatient(db, secondUser, "Deleted", deleted: true);
-        var service = new PatientService(db.Context);
+        var apptService = new SCMS.Domain.Features.Appointments.AppointmentsService(db.Context); var presService = new SCMS.Domain.Features.Prescriptions.PrescriptionService(db.Context); var service = new PatientService(db.Context, apptService, presService);
 
         var listResult = await service.GetPatientProfilesAsync(staff.UserId, new PaginationRequest(), isStaff: true);
 
@@ -63,7 +63,7 @@ public class PatientServiceTests
         var stranger = TestData.AddUser(db);
         var admin = TestData.AddUser(db, role: "owner");
         var patient = TestData.AddPatient(db, owner);
-        var service = new PatientService(db.Context);
+        var apptService = new SCMS.Domain.Features.Appointments.AppointmentsService(db.Context); var presService = new SCMS.Domain.Features.Prescriptions.PrescriptionService(db.Context); var service = new PatientService(db.Context, apptService, presService);
 
         var ownerResult = await service.GetPatientProfileByIdAsync(patient.PatientId, owner.UserId);
         var strangerResult = await service.GetPatientProfileByIdAsync(patient.PatientId, stranger.UserId);
@@ -89,9 +89,9 @@ public class PatientServiceTests
             ActualNotes = "Rest well",
             LabTestRequests = "CBC"
         });
-        var prescription = TestData.AddPrescription(db, patient, appointment, disease, notes);
+        var prescription = TestData.AddPrescription(db, patient, appointment, disease, "Rest well", "CBC");
         TestData.AddPrescriptionItem(db, prescription, medicine, batch);
-        var service = new PatientService(db.Context);
+        var apptService = new SCMS.Domain.Features.Appointments.AppointmentsService(db.Context); var presService = new SCMS.Domain.Features.Prescriptions.PrescriptionService(db.Context); var service = new PatientService(db.Context, apptService, presService);
 
         var result = await service.GetPatientHistoryAsync(patient.PatientId, user.UserId);
 
@@ -107,26 +107,23 @@ public class PatientServiceTests
     {
         using var db = new TestDatabase();
         var user = TestData.AddUser(db);
-        var address = JsonSerializer.Serialize(new 
-        {
-            Allergies = "Penicillin",
-            ChronicConditions = "Diabetes"
-        });
-        var patient = TestData.AddPatient(db, user, ActualAddress: address);
+        var patient = TestData.AddPatient(db, user, ActualAddress: "Some Address");
+        patient.Allergies = "Penicillin";
+        patient.ChronicConditions = "Diabetes";
+        db.Context.SaveChanges();
+
         var appointment = TestData.AddAppointment(db, patient, DateTime.UtcNow.AddDays(-1), "completed");
         var disease = TestData.AddDisease(db);
         var medicine = TestData.AddMedicine(db);
-        var notes = JsonSerializer.Serialize(new 
-        {
-            TemperatureC = 37.5,
-            PulseBpm = 88,
-            Spo2Percent = 98,
-            HeightCm = 165,
-            Bmi = 22.04
-        });
-        var prescription = TestData.AddPrescription(db, patient, appointment, disease, notes);
+        var prescription = TestData.AddPrescription(db, patient, appointment, disease, "Rest well", null);
+        prescription.TemperatureC = 37.5;
+        prescription.PulseBpm = 88;
+        prescription.Spo2Percent = 98;
+        prescription.HeightCm = 165;
+        prescription.Bmi = 22.04;
+        db.Context.SaveChanges();
         TestData.AddPrescriptionItem(db, prescription, medicine);
-        var service = new PatientService(db.Context);
+        var apptService = new SCMS.Domain.Features.Appointments.AppointmentsService(db.Context); var presService = new SCMS.Domain.Features.Prescriptions.PrescriptionService(db.Context); var service = new PatientService(db.Context, apptService, presService);
 
         var result = await service.GetMedicalSummaryAsync(patient.PatientId, user.UserId);
 

@@ -11,7 +11,7 @@ using SCMS.Domain.DTOs.Prescriptions;
 
 namespace SCMS.Domain.Features.Mcp
 {
-    public class McpService
+    public class McpService : IMcpService
     {
         private readonly AppDbContext _context;
 

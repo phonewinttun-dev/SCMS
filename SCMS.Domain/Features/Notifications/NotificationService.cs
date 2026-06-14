@@ -11,7 +11,7 @@ using SCMS.Domain.Realtime;
 
 namespace SCMS.Domain.Features.Notifications
 {
-    public class NotificationService
+    public class NotificationService : INotificationService
     {
         private readonly AppDbContext _context;
         private readonly IHubContext<NotificationsHub>? _hubContext;
@@ -77,23 +77,23 @@ namespace SCMS.Domain.Features.Notifications
             return Result.Success("Notification marked as read.");
         }
 
-        public async Task<Result<NotificationResponse>> CreateNotificationAsync(int? userId, string title, string description, string? actionRoute)
+        public async Task<Result<NotificationResponse>> CreateNotificationAsync(CreateNotificationRequest request)
         {
-            if (string.IsNullOrWhiteSpace(title))
+            if (string.IsNullOrWhiteSpace(request.Title))
             {
                 return Result<NotificationResponse>.Failure("Notification title is required.");
             }
-            if (string.IsNullOrWhiteSpace(description))
+            if (string.IsNullOrWhiteSpace(request.Description))
             {
                 return Result<NotificationResponse>.Failure("Notification description is required.");
             }
 
             var n = new TblNotification
             {
-                UserId = userId,
-                Title = title.Trim(),
-                Description = description.Trim(),
-                ActionRoute = actionRoute,
+                UserId = request.UserId,
+                Title = request.Title.Trim(),
+                Description = request.Description.Trim(),
+                ActionRoute = request.ActionRoute,
                 CreatedAt = DateTime.UtcNow,
                 DeleteFlag = false
             };
@@ -114,16 +114,14 @@ namespace SCMS.Domain.Features.Notifications
             {
                 if (_hubContext != null)
                 {
-                    if (userId.HasValue)
+                    if (request.UserId.HasValue)
                     {
-                        await _hubContext.Clients.User(userId.Value.ToString()).SendAsync("ReceiveNotification", response);
+                        await _hubContext.Clients.User(request.UserId.Value.ToString()).SendAsync("ReceiveNotification", response);
                     }
                     else
                     {
                         await _hubContext.Clients.Group("clinic-notifications").SendAsync("ReceiveNotification", response);
                     }
-
-                    await _hubContext.Clients.All.SendAsync("NotificationsChanged");
                 }
             }
             catch (Exception ex)

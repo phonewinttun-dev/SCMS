@@ -655,17 +655,6 @@ namespace SCMS.Domain.Tests.Mcp
             // Arrange
             var user = await CreateTestUserAsync("damon@scms.demo");
             
-            var addressMeta = new McpServiceTestsAddressMeta
-            {
-                ActualAddress = "123 Mystic Falls",
-                Allergies = "Penicillin",
-                ChronicConditions = "Asthma",
-                PastSurgeries = "None",
-                FamilyHistory = "None",
-                VaccinationHistory = "Flu vaccine 2025"
-            };
-            var serializedActualAddress = System.Text.Json.JsonSerializer.Serialize(addressMeta);
-
             var patient = new TblPatient
             {
                 UserId = user.UserId,
@@ -673,7 +662,12 @@ namespace SCMS.Domain.Tests.Mcp
                 MobileNo = "09979998811",
                 DateOfBirth = new DateOnly(1994, 6, 18),
                 Gender = "male",
-                ActualAddress = "",
+                ActualAddress = "123 Mystic Falls",
+                Allergies = "Penicillin",
+                ChronicConditions = "Asthma",
+                PastSurgeries = "None",
+                FamilyHistory = "None",
+                VaccinationHistory = "Flu vaccine 2025",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DeleteFlag = false

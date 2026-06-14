@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SCMS.Domain.DTOs.Notifications;
 using SCMS.Domain.Security;
 using SCMS.Shared;
 
@@ -9,11 +10,11 @@ namespace SCMS.Domain.Features.Notifications
     [ApiController]
     [Authorize]
     [Route("api/[controller]")]
-    public class NotificationsController : ControllerBase
+    public class NotificationController : ControllerBase
     {
-        private readonly NotificationService _notificationService;
+        private readonly INotificationService _notificationService;
 
-        public NotificationsController(NotificationService notificationService)
+        public NotificationController(INotificationService notificationService)
         {
             _notificationService = notificationService;
         }
@@ -21,7 +22,6 @@ namespace SCMS.Domain.Features.Notifications
         [HttpGet]
         public async Task<IActionResult> GetNotifications([FromQuery] PaginationRequest paginationRequest, [FromQuery] bool includeAll = false)
         {
-            //paginationRequest ??= new PaginationRequest();
             if (paginationRequest.PageNumber <= 0) paginationRequest.PageNumber = 1;
             if (paginationRequest.PageSize <= 0) paginationRequest.PageSize = 10;
 
@@ -60,22 +60,19 @@ namespace SCMS.Domain.Features.Notifications
 
         [HttpPost]
         [Authorize(Roles = "owner,admin,doctor")]
-        public async Task<IActionResult> CreateNotification([FromBody] CreateNotificationApiRequest request)
+        public async Task<IActionResult> CreateNotification([FromBody] CreateNotificationRequest request)
         {
-            var result = await _notificationService.CreateNotificationAsync(request.UserId, request.Title, request.Description, request.ActionRoute);
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(Result.Failure("Invalid request data."));
+            }
+
+            var result = await _notificationService.CreateNotificationAsync(request);
             if (result.IsFailure)
             {
                 return BadRequest(result);
             }
             return Ok(result);
         }
-    }
-
-    public class CreateNotificationApiRequest
-    {
-        public int? UserId { get; set; }
-        public string Title { get; set; } = null!;
-        public string Description { get; set; } = null!;
-        public string? ActionRoute { get; set; }
     }
 }

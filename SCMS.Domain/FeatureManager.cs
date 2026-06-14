@@ -55,17 +55,17 @@ namespace SCMS.Domain
             builder.Services.AddScoped<IAppointmentService, AppointmentsService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<DashboardService>();
-            builder.Services.AddScoped<DiseaseService>();
+            builder.Services.AddScoped<IDiseaseService, DiseaseService>();
             builder.Services.AddScoped<IFollowUpService, FollowUpService>();
             builder.Services.AddScoped<MedicineService>();
-            builder.Services.AddScoped<NotificationService>();
-            builder.Services.AddScoped<PatientService>();
+            builder.Services.AddScoped<INotificationService, NotificationService>();
+            builder.Services.AddScoped<IPatientService, PatientService>();
             builder.Services.AddScoped<PaymentService>();
             builder.Services.AddScoped<PdfDocumentService>();
             builder.Services.AddScoped<ReportService>();
-            builder.Services.AddScoped<PrescriptionService>();
+            builder.Services.AddScoped<IPrescriptionService, PrescriptionService>();
             builder.Services.AddScoped<PhotoService>();
-            builder.Services.AddScoped<McpService>();
+            builder.Services.AddScoped<IMcpService, McpService>();
             builder.Services.AddHostedService<InventoryMonitorService>();
         }
     }

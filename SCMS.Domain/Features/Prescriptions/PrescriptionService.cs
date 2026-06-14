@@ -9,11 +9,12 @@ using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
 using SCMS.Domain.DTOs.Prescriptions;
 using SCMS.Shared;
+using SCMS.Domain.DTOs.Notifications;
 using SCMS.Domain.Features.Notifications;
 
 namespace SCMS.Domain.Features.Prescriptions
 {
-    public class PrescriptionService
+    public class PrescriptionService : IPrescriptionService
     {
         private readonly AppDbContext _context;
         private readonly NotificationService? _notificationService;
@@ -299,12 +300,13 @@ namespace SCMS.Domain.Features.Prescriptions
                 {
                     if (_notificationService != null)
                     {
-                        await _notificationService.CreateNotificationAsync(
-                            null,
-                            "Low Stock Alert",
-                            $"Medicine '{alert.MedName}' has dropped below threshold with {alert.TotalAvailable} units remaining.",
-                            $"/inventory"
-                        );
+                        await _notificationService.CreateNotificationAsync(new CreateNotificationRequest
+                        {
+                            UserId = null,
+                            Title = "Low Stock Alert",
+                            Description = $"Medicine '{alert.MedName}' has dropped below threshold with {alert.TotalAvailable} units remaining.",
+                            ActionRoute = $"/inventory"
+                        });
                     }
                     else
                     {
@@ -626,6 +628,59 @@ namespace SCMS.Domain.Features.Prescriptions
                 .FirstAsync(t => t.Id == id);
 
             return MapToTemplateResponse(template);
+        }
+
+        public async Task<Result<List<PrescriptionResponse>>> GetAllPrescriptionsForPatientAsync(int patientId)
+        {
+            var prescriptions = await _context.TblPrescriptions
+                .Include(p => p.Patient)
+                .Include(p => p.Appointment)
+                .Include(p => p.Disease)
+                .Include(p => p.TblPrescriptionItems)
+                    .ThenInclude(i => i.Medicine)
+                .Where(p => p.PatientId == patientId && p.DeleteFlag != true)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+
+            var list = prescriptions.Select(MapToResponse).ToList();
+            return Result<List<PrescriptionResponse>>.Success(list);
+        }
+
+        private static PrescriptionResponse MapToResponse(TblPrescription p)
+        {
+            var itemResponseDtos = p.TblPrescriptionItems.Select(i => new PrescriptionItemResponseDto
+            {
+                Id = i.Id,
+                MedicineId = i.MedicineId,
+                MedicineName = i.Medicine.Name,
+                Dosage = i.Dosage,
+                Days = i.Days,
+                Quantity = i.Quantity,
+                Instruction = i.Instruction
+            }).ToList();
+
+            return new PrescriptionResponse
+            {
+                Id = p.Id,
+                AppointmentId = p.AppointmentId,
+                AppointmentCode = p.Appointment?.AppointmentCode ?? "",
+                PatientId = p.PatientId,
+                PatientName = p.Patient?.Name ?? "",
+                DiseaseId = p.DiseaseId,
+                DiseaseName = p.Disease?.Name,
+                WeightKg = p.WeightKg,
+                BloodPressureSystolic = p.BloodPressureSystolic,
+                BloodPressureDiastolic = p.BloodPressureDiastolic,
+                Notes = p.ActualNotes,
+                TemperatureC = p.TemperatureC,
+                PulseBpm = p.PulseBpm,
+                Spo2Percent = p.Spo2Percent,
+                HeightCm = p.HeightCm,
+                Bmi = p.Bmi,
+                LabTestRequests = p.LabTestRequests,
+                Items = itemResponseDtos,
+                CreatedAt = p.CreatedAt ?? DateTime.UtcNow
+            };
         }
 
         private static PrescriptionTemplateResponse MapToTemplateResponse(TblPrescriptionTemplate template)

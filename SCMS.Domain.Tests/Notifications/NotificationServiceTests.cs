@@ -14,9 +14,9 @@ public class NotificationServiceTests
         var otherUser = TestData.AddUser(db);
         var service = new NotificationService(db.Context);
 
-        await service.CreateNotificationAsync(user.UserId, "Mine", "User notification", "/mine");
-        await service.CreateNotificationAsync(null, "Broadcast", "Clinic alert", "/alerts");
-        await service.CreateNotificationAsync(otherUser.UserId, "Other", "Other notification", "/other");
+        await service.CreateNotificationAsync(new SCMS.Domain.DTOs.Notifications.CreateNotificationRequest { UserId = user.UserId, Title = "Mine", Description = "User notification", ActionRoute = "/mine" });
+        await service.CreateNotificationAsync(new SCMS.Domain.DTOs.Notifications.CreateNotificationRequest { UserId = null, Title = "Broadcast", Description = "Clinic alert", ActionRoute = "/alerts" });
+        await service.CreateNotificationAsync(new SCMS.Domain.DTOs.Notifications.CreateNotificationRequest { UserId = otherUser.UserId, Title = "Other", Description = "Other notification", ActionRoute = "/other" });
 
         var result = await service.GetNotificationsAsync(user.UserId, new PaginationRequest());
 
@@ -34,7 +34,7 @@ public class NotificationServiceTests
         var owner = TestData.AddUser(db);
         var stranger = TestData.AddUser(db);
         var service = new NotificationService(db.Context);
-        await service.CreateNotificationAsync(owner.UserId, "Mine", "Read me", null);
+        await service.CreateNotificationAsync(new SCMS.Domain.DTOs.Notifications.CreateNotificationRequest { UserId = owner.UserId, Title = "Mine", Description = "Read me", ActionRoute = null });
         var notificationId = db.Context.TblNotifications.Single().Id;
 
         var strangerResult = await service.MarkAsReadAsync(notificationId, stranger.UserId);
@@ -52,7 +52,7 @@ public class NotificationServiceTests
         using var db = new TestDatabase();
         var service = new NotificationService(db.Context);
 
-        var result = await service.CreateNotificationAsync(null, " ", " ", null);
+        var result = await service.CreateNotificationAsync(new SCMS.Domain.DTOs.Notifications.CreateNotificationRequest { UserId = null, Title = " ", Description = " ", ActionRoute = null });
 
         Assert.True(result.IsFailure);
         Assert.Empty(db.Context.TblNotifications);

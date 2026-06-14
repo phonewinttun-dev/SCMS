@@ -16,6 +16,7 @@ namespace SCMS.Domain.Features.Appointments
             int? currentUserId = null,
             bool isStaff = true);
         Task<Result<AppointmentQueueStatusResponse>> GetPatientQueueStatusAsync(int id);
+        Task<Result<List<AppointmentDetailsResponse>>> GetAllAppointmentsForPatientAsync(int patientId);
         //Task<Result<AppointmentDetailsResponse>> CallNextPatientAsync();
     }
 }

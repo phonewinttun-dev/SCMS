@@ -39,6 +39,11 @@ namespace SCMS.Domain.Features.Diseases
 
         public async Task<Result<DiseaseResponse>> CreateDiseaseAsync(CreateDiseaseRequest request)
         {
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                return Result<DiseaseResponse>.Failure("Disease name is required");
+            }
+
             // Check if disease with same name already exists (case-insensitive)
             var diseaseExists = await _context.TblDiseases
                 .AnyAsync(d => d.Name.ToLower() == request.Name.Trim().ToLower() && d.DeleteFlag != true);
@@ -69,6 +74,11 @@ namespace SCMS.Domain.Features.Diseases
 
         public async Task<Result<DiseaseResponse>> UpdateDiseaseAsync(UpdateDiseaseRequest request)
         {
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                return Result<DiseaseResponse>.Failure("Disease name is required");
+            }
+
             var disease = await _context.TblDiseases.FirstOrDefaultAsync(d => d.Id == request.Id && d.DeleteFlag != true);
             if(disease == null)
             {

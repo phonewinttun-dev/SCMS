@@ -161,7 +161,7 @@ public static class TestData
         TblPatient patient,
         TblAppointment appointment,
         TblDisease? disease = null,
-        string? Notes = null,
+        string? actualNotes = null, string? labTestRequests = null,
         DateTime? createdAt = null)
     {
         var prescription = new TblPrescription
@@ -172,7 +172,7 @@ public static class TestData
             WeightKg = 60,
             BloodPressureSystolic = 120,
             BloodPressureDiastolic = 80,
-            ActualNotes = "",
+            ActualNotes = actualNotes ?? "", LabTestRequests = labTestRequests,
             CreatedAt = createdAt ?? DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             DeleteFlag = false

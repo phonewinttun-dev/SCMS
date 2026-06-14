@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using SCMS.Database.Models;
 using SCMS.Domain.DTOs.Medicines;
 using SCMS.Shared;
+using SCMS.Domain.DTOs.Notifications;
 using SCMS.Domain.Features.Photo;
 using SCMS.Domain.Features.Notifications;
 
@@ -207,7 +208,7 @@ namespace SCMS.Domain.Features.Medicines
 
                 if (_notificationService != null)
                 {
-                    await _notificationService.CreateNotificationAsync(null, title, alert.Message, "/inventory");
+                    await _notificationService.CreateNotificationAsync(new CreateNotificationRequest { UserId = null, Title = title, Description = alert.Message, ActionRoute = "/inventory" });
                 }
                 else
                 {

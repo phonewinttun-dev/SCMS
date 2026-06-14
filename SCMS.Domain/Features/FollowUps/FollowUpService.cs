@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
 using SCMS.Shared;
+using SCMS.Domain.DTOs.Notifications;
 using SCMS.Domain.DTOs.FollowUps;
 using SCMS.Domain.Features.Notifications;
 
@@ -124,11 +125,13 @@ namespace SCMS.Domain.Features.FollowUps
                 // Create the notification associated with this follow-up
                 if (_notificationService != null)
                 {
-                    await _notificationService.CreateNotificationAsync(
-                        patient.UserId,
-                        "Follow-up Scheduled",
-                        $"{patient.Name} has a follow-up due on {request.DueAt:yyyy-MM-dd HH:mm}.",
-                        $"/follow-ups?patientId={patient.PatientId}");
+                    await _notificationService.CreateNotificationAsync(new CreateNotificationRequest
+                    {
+                        UserId = patient.UserId,
+                        Title = "Follow-up Scheduled",
+                        Description = $"{patient.Name} has a follow-up due on {request.DueAt:dd-MM-yyyy HH:mm}.",
+                        ActionRoute = $"/follow-ups?patientId={patient.PatientId}"
+                    });
                 }
                 else
                 {
@@ -136,7 +139,7 @@ namespace SCMS.Domain.Features.FollowUps
                     {
                         UserId = patient.UserId,
                         Title = "Follow-up Scheduled",
-                        Description = $"{patient.Name} has a follow-up due on {request.DueAt:yyyy-MM-dd HH:mm}.",
+                        Description = $"{patient.Name} has a follow-up due on {request.DueAt:dd-MM-yyyy HH:mm}.",
                         ActionRoute = $"/follow-ups?patientId={patient.PatientId}",
                         CreatedAt = DateTime.UtcNow,
                         DeleteFlag = false
