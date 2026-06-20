@@ -14,12 +14,12 @@ class AuthController extends AsyncNotifier<AuthSession?> {
     return ref.watch(authRepositoryProvider).restoreSession();
   }
 
-  Future<void> signIn({required String email, required String password}) async {
+  Future<void> signIn({required String emailOrMobile, required String password}) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
       () => ref
           .read(authRepositoryProvider)
-          .signIn(email: email, password: password),
+          .signIn(emailOrMobile: emailOrMobile, password: password),
     );
   }
 
@@ -40,7 +40,7 @@ class AuthController extends AsyncNotifier<AuthSession?> {
         mobileNo: mobileNo,
       );
       // Auto sign-in after successful registration.
-      return repo.signIn(email: email, password: password);
+      return repo.signIn(emailOrMobile: email, password: password);
     });
   }
 

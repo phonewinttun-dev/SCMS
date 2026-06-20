@@ -139,6 +139,7 @@ namespace SCMS.Domain.Features.Appointments
             {
                 return Result<BookAppointmentResponse>.Failure("Unable to book appointment. Please try again.");
             }
+            appointment.Patient = patient;
 
             // Calculate Token and Queue status
             var queueStatus = await GetQueueInfoAsync(appointment);
@@ -165,6 +166,8 @@ namespace SCMS.Domain.Features.Appointments
                 Description = notificationDescription,
                 ActionRoute = actionRoute
             });
+
+            await BroadcastQueueUpdateAsync(MapToDetailsResponse(appointment, response.TokenNumber));
 
             return Result<BookAppointmentResponse>.Success(response, "Appointment booked successfully.");
         }
@@ -218,6 +221,8 @@ namespace SCMS.Domain.Features.Appointments
                 });
             }
 
+            await BroadcastQueueUpdateAsync(responseDto);
+
             return Result<AppointmentDetailsResponse>.Success(responseDto, "Appointment status updated.");
         }
 
@@ -268,6 +273,8 @@ namespace SCMS.Domain.Features.Appointments
                 Description = description,
                 ActionRoute = actionRoute
             });
+
+            await BroadcastQueueUpdateAsync(responseDto);
 
             return Result<AppointmentDetailsResponse>.Success(responseDto, "Appointment rescheduled.");
         }
@@ -328,12 +335,20 @@ namespace SCMS.Domain.Features.Appointments
             return PagedResult<AppointmentDetailsResponse>.Success(list, pagination);
         }
 
-        public async Task<Result<AppointmentQueueStatusResponse>> GetPatientQueueStatusAsync(int id)
+        public async Task<Result<AppointmentQueueStatusResponse>> GetPatientQueueStatusAsync(
+            int id,
+            int? currentUserId = null,
+            bool isStaff = true)
         {
             var appointment = await _context.TblAppointments
+                .Include(a => a.Patient)
                 .FirstOrDefaultAsync(a => a.Id == id);
 
             if (appointment == null)
+            {
+                return Result<AppointmentQueueStatusResponse>.Failure("Appointment not found.");
+            }
+            if (!CanAccessAppointment(appointment, currentUserId, isStaff))
             {
                 return Result<AppointmentQueueStatusResponse>.Failure("Appointment not found.");
             }
@@ -365,25 +380,34 @@ namespace SCMS.Domain.Features.Appointments
         {
             var today = DateTime.UtcNow.Date;
             var tomorrow = today.AddDays(1);
-            var nextAppointment = await _context.TblAppointments
+
+            var todayQueue = await _context.TblAppointments
                 .Include(a => a.Patient)
                 .Where(a => a.Datetime >= today && a.Datetime < tomorrow
                     && (a.Status == "pending" || a.Status == "confirmed"))
                 .OrderBy(a => a.Id)
-                .FirstOrDefaultAsync();
+                .ToListAsync();
+
+            var currentActive = todayQueue.FirstOrDefault(a => a.Status == "confirmed");
+            var nextAppointment = todayQueue.FirstOrDefault(a => a.Status == "pending"
+                && (currentActive == null || a.Id > currentActive.Id));
 
             if (nextAppointment == null)
             {
+                if (currentActive != null)
+                {
+                    currentActive.Status = "completed";
+                    currentActive.UpdatedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+
+                    var currentToken = await GetTokenNumberAsync(currentActive);
+                    await BroadcastQueueUpdateAsync(MapToDetailsResponse(currentActive, currentToken));
+                }
+
                 return Result<AppointmentDetailsResponse>.Failure("No more patients in queue for today.");
             }
 
-            var earlierConfirmed = await _context.TblAppointments
-                .Where(a => a.Datetime >= today && a.Datetime < tomorrow
-                    && a.Id < nextAppointment.Id
-                    && a.Status == "confirmed")
-                .ToListAsync();
-
-            foreach (var appointment in earlierConfirmed)
+            foreach (var appointment in todayQueue.Where(a => a.Status == "confirmed" && a.Id < nextAppointment.Id))
             {
                 appointment.Status = "completed";
                 appointment.UpdatedAt = DateTime.UtcNow;
@@ -432,8 +456,7 @@ namespace SCMS.Domain.Features.Appointments
 
             if (_queueHubContext != null)
             {
-                await _queueHubContext.Clients.Group("clinic-queue").SendAsync("QueueUpdated", responseDto);
-                await _queueHubContext.Clients.Group($"appointment-{responseDto.Id}").SendAsync("AppointmentUpdated", responseDto);
+                await BroadcastQueueUpdateAsync(responseDto);
             }
 
             return Result<AppointmentDetailsResponse>.Success(responseDto, "Next patient called.");
@@ -538,6 +561,29 @@ namespace SCMS.Domain.Features.Appointments
                 ClinicDoctorName = "Clinic Doctor",
                 CreatedAt = a.CreatedAt ?? DateTime.UtcNow
             };
+        }
+
+        private async Task BroadcastQueueUpdateAsync(AppointmentDetailsResponse responseDto)
+        {
+            if (_queueHubContext == null)
+            {
+                return;
+            }
+
+            await _queueHubContext.Clients.Group("clinic-queue").SendAsync("QueueUpdated", responseDto);
+            await _queueHubContext.Clients.Group($"appointment-{responseDto.Id}").SendAsync("AppointmentUpdated", responseDto);
+        }
+
+        private static bool CanAccessAppointment(TblAppointment appointment, int? currentUserId, bool isStaff)
+        {
+            if (isStaff)
+            {
+                return true;
+            }
+
+            return currentUserId.HasValue
+                && appointment.Patient != null
+                && appointment.Patient.UserId == currentUserId.Value;
         }
     }
 }

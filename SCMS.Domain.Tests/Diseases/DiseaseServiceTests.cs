@@ -127,6 +127,40 @@ namespace SCMS.Domain.Tests.Diseases
         }
 
         [Fact]
+        public async Task UpdateDisease_ShouldReturnFailure_WhenNameDuplicatesAnotherDisease()
+        {
+            var existing = new TblDisease
+            {
+                Name = "Influenza",
+                Description = "Flu",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                DeleteFlag = false
+            };
+            var target = new TblDisease
+            {
+                Name = "Cold",
+                Description = "Cold",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                DeleteFlag = false
+            };
+            _context.TblDiseases.AddRange(existing, target);
+            await _context.SaveChangesAsync();
+
+            var result = await _diseaseService.UpdateDiseaseAsync(new UpdateDiseaseRequest
+            {
+                Id = target.Id,
+                Name = "influenza",
+                Description = "Duplicate"
+            });
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal("A disease with this name already exists.", result.Message);
+            Assert.Equal("Cold", (await _context.TblDiseases.FindAsync(target.Id))!.Name);
+        }
+
+        [Fact]
         public async Task DeactivateDisease_ShouldReturnSuccess_WhenDiseaseNotReferenced()
         {
             // Arrange
@@ -228,6 +262,30 @@ namespace SCMS.Domain.Tests.Diseases
             Assert.Equal(2, result.Data.Count);
             Assert.Contains(result.Data, d => d.Name == "Flu");
             Assert.Contains(result.Data, d => d.Name == "Cold");
+        }
+
+        [Fact]
+        public async Task GetDiseasesAsync_ShouldReturnTotalCountBeforePagination()
+        {
+            for (var i = 0; i < 3; i++)
+            {
+                _context.TblDiseases.Add(new TblDisease
+                {
+                    Name = $"Paged Disease {i}",
+                    Description = "Paged",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    DeleteFlag = false
+                });
+            }
+            await _context.SaveChangesAsync();
+
+            var result = await _diseaseService.GetDiseasesAsync(new DiseaseRequest { PageNumber = 1, PageSize = 2 });
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(2, result.Data.Count);
+            Assert.Equal(3, result.Pagination.TotalCount);
+            Assert.Equal(2, result.Pagination.TotalPages);
         }
 
         [Fact]

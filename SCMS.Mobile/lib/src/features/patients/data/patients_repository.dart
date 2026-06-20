@@ -93,7 +93,12 @@ class PatientsRepository {
       throw AppException(body['message'] as String? ?? 'Failed to load patient history');
     }
 
-    return body['data'] as List<dynamic>? ?? [];
+    final data = body['data'];
+    if (data is Map<String, dynamic>) {
+      return data['timeline'] as List<dynamic>? ?? [];
+    }
+
+    return data as List<dynamic>? ?? [];
   }
 
   Future<Map<String, dynamic>> getMedicalSummary(int id) async {

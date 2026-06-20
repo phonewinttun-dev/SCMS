@@ -17,9 +17,12 @@ namespace SCMS.Domain.Features.Diseases
         public async Task<PagedResult<DiseaseResponse>> GetDiseasesAsync(DiseaseRequest request)
         {
             var query = string.IsNullOrWhiteSpace(request.Query) ? string.Empty : request.Query.Trim().ToLower();
-            var diseases = await _context.TblDiseases.Where(d => d.DeleteFlag != true && 
-            (string.IsNullOrEmpty(query) || d.Name.ToLower().Contains(query) || 
-            (d.Description != null && d.Description.ToLower().Contains(query))))
+            var baseQuery = _context.TblDiseases.Where(d => d.DeleteFlag != true &&
+            (string.IsNullOrEmpty(query) || d.Name.ToLower().Contains(query) ||
+            (d.Description != null && d.Description.ToLower().Contains(query))));
+
+            var totalCount = await baseQuery.CountAsync();
+            var diseases = await baseQuery
                 .OrderBy(d => d.Name)
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
@@ -30,8 +33,6 @@ namespace SCMS.Domain.Features.Diseases
                     Description = d.Description
                 })
                 .ToListAsync();
-
-            var totalCount = diseases.Count();
                 
 
             return PagedResult<DiseaseResponse>.Success(diseases, new Pagination(request.PageNumber, request.PageSize, totalCount));
@@ -83,6 +84,15 @@ namespace SCMS.Domain.Features.Diseases
             if(disease == null)
             {
                 return Result<DiseaseResponse>.Failure("Disease to update not found");
+            }
+
+            var duplicateExists = await _context.TblDiseases
+                .AnyAsync(d => d.Id != request.Id
+                    && d.Name.ToLower() == request.Name.Trim().ToLower()
+                    && d.DeleteFlag != true);
+            if (duplicateExists)
+            {
+                return Result<DiseaseResponse>.Failure("A disease with this name already exists.");
             }
 
             disease.Name = request.Name.Trim();

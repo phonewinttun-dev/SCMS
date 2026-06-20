@@ -83,7 +83,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
       );
     } else {
       await controller.signIn(
-        email: _emailController.text.trim(),
+        emailOrMobile: _emailController.text.trim(),
         password: _passwordController.text,
       );
     }
@@ -302,14 +302,14 @@ class _LoginPageState extends ConsumerState<LoginPage>
               ],
 
               // ── Email field ───────────────────────────────────────
-              _buildLabel(t.email, isDark),
+              _buildLabel(_isRegister ? t.email : '${t.email} / ${t.mobileNo}', isDark),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
+                keyboardType: _isRegister ? TextInputType.emailAddress : TextInputType.text,
                 textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
-                  hintText: t.emailHint,
+                  hintText: _isRegister ? t.emailHint : '${t.emailHint} or ${t.mobileHint}',
                   prefixIcon: Icon(
                     Icons.mail_outline_rounded,
                     color:

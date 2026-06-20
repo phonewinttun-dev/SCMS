@@ -11,13 +11,13 @@ import {
   Download,
   User,
   Activity,
-  HeartHandshake
+  X
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import PaginationControls from "../components/PaginationControls";
 import SearchForm from "../components/SearchForm";
 import { patientsApi, downloadBlob } from "../services/scmsApi";
-import { showAlert, showError, showSuccess, showConfirm } from "../services/dialogs";
+import { showError, showSuccess, showConfirm } from "../services/dialogs";
 import { useLanguage } from "../context/LanguageContext";
 
 export default function PatientsPage() {
@@ -69,7 +69,7 @@ export default function PatientsPage() {
           setTotalCount(res.pagination.totalCount || (res.data || []).length);
         }
       }
-    } catch (error) {
+    } catch {
       showError("Failed to load patient directory.");
     } finally {
       setLoading(false);
@@ -180,7 +180,7 @@ export default function PatientsPage() {
       const response = await patientsApi.summaryPdf(patient.patientId || patient.id);
       downloadBlob(response, `medical-summary-${patient.name}.pdf`);
       showSuccess("Medical summary downloaded successfully.");
-    } catch (error) {
+    } catch {
       showError("Failed to download PDF summary.");
     }
   };

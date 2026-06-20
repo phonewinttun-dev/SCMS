@@ -319,12 +319,16 @@ class _StaffPatientWorkspace extends ConsumerWidget {
             return Column(
               children: [
                 for (final item in history) ...[
-                  FeatureCard(
-                    icon: Icons.history,
-                    title: 'Visit: ${item['diseaseName'] ?? "General Consultation"}',
-                    subtitle: 'Diagnosed at ${item['createdAt'] != null ? DateFormat('MMM dd, yyyy').format(DateTime.parse(item['createdAt'])) : "Unknown date"}',
-                    trailing: const Icon(Icons.chevron_right),
-                  ),
+                  Builder(builder: (context) {
+                    final entry = item as Map<String, dynamic>;
+                    final date = DateTime.tryParse(entry['date']?.toString() ?? '');
+                    return FeatureCard(
+                      icon: Icons.history,
+                      title: entry['title']?.toString() ?? entry['type']?.toString() ?? 'Clinical event',
+                      subtitle: '${date != null ? DateFormat('MMM dd, yyyy').format(date) : "Unknown date"} - ${entry['description'] ?? ""}',
+                      trailing: const Icon(Icons.chevron_right),
+                    );
+                  }),
                   const SizedBox(height: 10),
                 ],
               ],
@@ -398,12 +402,16 @@ class _PatientRecordsWorkspace extends ConsumerWidget {
             return Column(
               children: [
                 for (final item in history) ...[
-                  FeatureCard(
-                    icon: Icons.event_note_outlined,
-                    title: item['diseaseName'] ?? 'General Consultation',
-                    subtitle: 'Prescribed course of ${item['items'] != null ? (item['items'] as List).length : 0} items',
-                    trailing: const Icon(Icons.download_outlined),
-                  ),
+                  Builder(builder: (context) {
+                    final entry = item as Map<String, dynamic>;
+                    final date = DateTime.tryParse(entry['date']?.toString() ?? '');
+                    return FeatureCard(
+                      icon: Icons.event_note_outlined,
+                      title: entry['title']?.toString() ?? entry['type']?.toString() ?? 'Clinical event',
+                      subtitle: '${date != null ? DateFormat('MMM dd, yyyy').format(date) : "Unknown date"} - ${entry['description'] ?? ""}',
+                      trailing: const Icon(Icons.chevron_right),
+                    );
+                  }),
                   const SizedBox(height: 10),
                 ],
               ],
@@ -414,4 +422,3 @@ class _PatientRecordsWorkspace extends ConsumerWidget {
     );
   }
 }
-

@@ -117,6 +117,48 @@ public class AppointmentsServiceTests
     }
 
     [Fact]
+    public async Task CallNextPatientAsync_CompletesCurrentConfirmedAndConfirmsNextPending()
+    {
+        using var db = new TestDatabase();
+        var currentUser = TestData.AddUser(db, "Current");
+        var nextUser = TestData.AddUser(db, "Next");
+        var currentPatient = TestData.AddPatient(db, currentUser, "Current Patient");
+        var nextPatient = TestData.AddPatient(db, nextUser, "Next Patient");
+        var current = TestData.AddAppointment(db, currentPatient, DateTime.UtcNow.Date.AddHours(9), "confirmed");
+        var next = TestData.AddAppointment(db, nextPatient, DateTime.UtcNow.Date.AddHours(10), "pending");
+        var service = TestServices.CreateAppointmentsService(db);
+
+        var result = await service.CallNextPatientAsync();
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(next.Id, result.Data!.Id);
+        Assert.Equal("completed", (await db.Context.TblAppointments.FindAsync(current.Id))!.Status);
+        Assert.Equal("confirmed", (await db.Context.TblAppointments.FindAsync(next.Id))!.Status);
+        Assert.Equal(nextUser.UserId, db.Context.TblNotifications.Single(n => n.Title == "It's Your Turn!").UserId);
+    }
+
+    [Fact]
+    public async Task GetPatientQueueStatusAsync_AllowsOwnerOrStaffOnly()
+    {
+        using var db = new TestDatabase();
+        var owner = TestData.AddUser(db);
+        var stranger = TestData.AddUser(db);
+        var staff = TestData.AddUser(db, role: "doctor");
+        var patient = TestData.AddPatient(db, owner);
+        var appointment = TestData.AddAppointment(db, patient, DateTime.UtcNow.Date.AddHours(10), "pending");
+        var service = TestServices.CreateAppointmentsService(db);
+
+        var ownerResult = await service.GetPatientQueueStatusAsync(appointment.Id, owner.UserId, isStaff: false);
+        var strangerResult = await service.GetPatientQueueStatusAsync(appointment.Id, stranger.UserId, isStaff: false);
+        var staffResult = await service.GetPatientQueueStatusAsync(appointment.Id, staff.UserId, isStaff: true);
+
+        Assert.True(ownerResult.IsSuccess);
+        Assert.True(strangerResult.IsFailure);
+        Assert.Equal("Appointment not found.", strangerResult.Message);
+        Assert.True(staffResult.IsSuccess);
+    }
+
+    [Fact]
     public async Task CallNextPatientAsync_FailsWhenTodayQueueIsEmpty()
     {
         using var db = new TestDatabase();

@@ -56,6 +56,43 @@ public class PatientServiceTests
     }
 
     [Fact]
+    public async Task AddPatientProfileAsync_StaffCreatesProfileForMatchingPatientUser()
+    {
+        using var db = new TestDatabase();
+        var staff = TestData.AddUser(db, role: "doctor");
+        var patientUser = TestData.AddUser(db, "Patient User");
+        var service = TestServices.CreatePatientService(db);
+
+        var result = await service.AddPatientProfileAsync(new PatientProfileRequest
+        {
+            Name = "Clinic Created",
+            Email = patientUser.Email
+        }, staff.UserId, isStaff: true);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(patientUser.UserId, result.Data!.UserId);
+        Assert.Equal(patientUser.UserId, db.Context.TblPatients.Single().UserId);
+    }
+
+    [Fact]
+    public async Task AddPatientProfileAsync_StaffRequiresMatchingPatientUser()
+    {
+        using var db = new TestDatabase();
+        var staff = TestData.AddUser(db, role: "doctor");
+        var service = TestServices.CreatePatientService(db);
+
+        var result = await service.AddPatientProfileAsync(new PatientProfileRequest
+        {
+            Name = "No Account",
+            Email = "missing@example.test"
+        }, staff.UserId, isStaff: true);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Patient user account not found for the provided email or mobile number.", result.Message);
+        Assert.Empty(db.Context.TblPatients);
+    }
+
+    [Fact]
     public async Task GetPatientProfileByIdAsync_AllowsOwnerOrAdminOnly()
     {
         using var db = new TestDatabase();

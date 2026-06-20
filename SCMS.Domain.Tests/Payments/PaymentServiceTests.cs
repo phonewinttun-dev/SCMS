@@ -72,7 +72,7 @@ public class PaymentServiceTests
             AppointmentId = appointment.Id,
             PaymentMethod = "wavepay",
             Amount = 12000m,
-            ScreenshotUrl = "proof.png"
+            ScreenshotUrl = "https://example.test/proof.png"
         });
         var paymentId = proofResult.Data!.Id;
 
@@ -100,7 +100,7 @@ public class PaymentServiceTests
             AppointmentId = appointment.Id,
             PaymentMethod = "wavepay",
             Amount = 12000m,
-            ScreenshotUrl = "proof.png"
+            ScreenshotUrl = "https://example.test/proof.png"
         }, stranger.UserId, isStaff: false);
 
         Assert.True(result.IsFailure);
@@ -127,6 +127,28 @@ public class PaymentServiceTests
         Assert.True(ownerResult.IsSuccess);
         Assert.True(strangerResult.IsFailure);
         Assert.True(staffResult.IsSuccess);
+    }
+
+    [Fact]
+    public async Task SubmitManualPaymentProofAsync_RejectsInvalidProofUrl()
+    {
+        using var db = new TestDatabase();
+        var owner = TestData.AddUser(db);
+        var patient = TestData.AddPatient(db, owner);
+        var appointment = TestData.AddAppointment(db, patient);
+        var service = new PaymentService(db.Context);
+
+        var result = await service.SubmitManualPaymentProofAsync(new ManualPaymentProofRequest
+        {
+            AppointmentId = appointment.Id,
+            PaymentMethod = "wavepay",
+            Amount = 12000m,
+            ScreenshotUrl = "proof.png"
+        }, owner.UserId, isStaff: false);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Payment proof screenshot must be a valid URL.", result.Message);
+        Assert.Empty(db.Context.TblPayments);
     }
 
     [Fact]

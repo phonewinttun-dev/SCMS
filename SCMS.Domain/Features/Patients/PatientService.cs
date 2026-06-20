@@ -28,7 +28,10 @@ namespace SCMS.Domain.Features.Patients
 
         // Metadata structures removed as they are now mapped directly as columns
 
-        public async Task<Result<PatientProfileResponse>> AddPatientProfileAsync(PatientProfileRequest request, int userId)
+        public async Task<Result<PatientProfileResponse>> AddPatientProfileAsync(
+            PatientProfileRequest request,
+            int userId,
+            bool isStaff = false)
         {
             if (userId <= 0)
             {
@@ -39,12 +42,36 @@ namespace SCMS.Domain.Features.Patients
                 return Result<PatientProfileResponse>.Failure("Patient name is required.");
             }
 
+            var ownerUserId = userId;
+            if (isStaff)
+            {
+                var email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim().ToLowerInvariant();
+                var mobile = string.IsNullOrWhiteSpace(request.MobileNo) ? null : request.MobileNo.Trim();
+
+                if (email == null && mobile == null)
+                {
+                    return Result<PatientProfileResponse>.Failure("Patient account email or mobile number is required.");
+                }
+
+                var owner = await _context.TblUsers
+                    .FirstOrDefaultAsync(u => u.DeleteFlag != true
+                        && ((email != null && u.Email != null && u.Email.ToLower() == email)
+                            || (mobile != null && u.MobileNo == mobile)));
+
+                if (owner == null)
+                {
+                    return Result<PatientProfileResponse>.Failure("Patient user account not found for the provided email or mobile number.");
+                }
+
+                ownerUserId = owner.UserId;
+            }
+
             var patient = new TblPatient
             {
-                UserId = userId,
+                UserId = ownerUserId,
                 Name = request.Name.Trim(),
-                MobileNo = request.MobileNo,
-                Email = request.Email,
+                MobileNo = request.MobileNo?.Trim(),
+                Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim().ToLowerInvariant(),
                 DateOfBirth = request.DateOfBirth,
                 Gender = request.Gender,
                 BloodType = request.BloodType,

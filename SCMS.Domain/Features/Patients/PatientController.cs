@@ -36,7 +36,7 @@ namespace SCMS.Domain.Features.Patients
                 return Unauthorized(Result.Failure("User id is required."));
             }
 
-            var result = await _patientService.AddPatientProfileAsync(request, userId.Value);
+            var result = await _patientService.AddPatientProfileAsync(request, userId.Value, User.IsStaff());
             if (result.IsFailure)
             {
                 return BadRequest(result);

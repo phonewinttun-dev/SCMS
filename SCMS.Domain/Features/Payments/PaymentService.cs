@@ -151,6 +151,11 @@ namespace SCMS.Domain.Features.Payments
             {
                 return Result<PaymentDetailsResponse>.Failure("Payment proof screenshot is required.");
             }
+            if (!Uri.TryCreate(request.ScreenshotUrl.Trim(), UriKind.Absolute, out var proofUri)
+                || (proofUri.Scheme != Uri.UriSchemeHttp && proofUri.Scheme != Uri.UriSchemeHttps))
+            {
+                return Result<PaymentDetailsResponse>.Failure("Payment proof screenshot must be a valid URL.");
+            }
 
             var appointment = await _context.TblAppointments
                 .Include(a => a.Patient)
@@ -178,7 +183,7 @@ namespace SCMS.Domain.Features.Payments
                     Charges = 0,
                     PaymentMethod = request.PaymentMethod.ToLower().Trim(),
                     PaymentStatus = "pending", // Pending manual approval
-                    PaymentScreenshot = request.ScreenshotUrl,
+                    PaymentScreenshot = proofUri.ToString(),
                     UpdatedAt = DateTime.UtcNow
                 };
                 _context.TblPayments.Add(payment);
@@ -192,7 +197,7 @@ namespace SCMS.Domain.Features.Payments
                 payment.Amount = request.Amount;
                 payment.Tax = request.Amount * 0.05m;
                 payment.PaymentMethod = request.PaymentMethod.ToLower().Trim();
-                payment.PaymentScreenshot = request.ScreenshotUrl;
+                payment.PaymentScreenshot = proofUri.ToString();
                 payment.PaymentStatus = "pending"; // Reset to pending approval
                 payment.UpdatedAt = DateTime.UtcNow;
             }
