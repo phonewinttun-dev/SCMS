@@ -24,7 +24,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController(text: 'user@scms.demo');
+  final _emailController = TextEditingController(text: 'aung.min@example.test');
   final _passwordController = TextEditingController(text: 'password');
   final _mobileController = TextEditingController();
 
