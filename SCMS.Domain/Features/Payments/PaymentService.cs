@@ -130,7 +130,10 @@ namespace SCMS.Domain.Features.Payments
             return Result<PaymentDetailsResponse>.Success(MapToResponse(payment, appointment), "Gateway callback processed successfully.");
         }
 
-        public async Task<Result<PaymentDetailsResponse>> SubmitManualPaymentProofAsync(ManualPaymentProofRequest request)
+        public async Task<Result<PaymentDetailsResponse>> SubmitManualPaymentProofAsync(
+            ManualPaymentProofRequest request,
+            int? currentUserId = null,
+            bool isStaff = true)
         {
             if (request.AppointmentId <= 0)
             {
@@ -154,6 +157,10 @@ namespace SCMS.Domain.Features.Payments
                 .FirstOrDefaultAsync(a => a.Id == request.AppointmentId);
 
             if (appointment == null)
+            {
+                return Result<PaymentDetailsResponse>.Failure("Appointment not found.");
+            }
+            if (!CanAccessAppointment(appointment, currentUserId, isStaff))
             {
                 return Result<PaymentDetailsResponse>.Failure("Appointment not found.");
             }
@@ -322,7 +329,10 @@ namespace SCMS.Domain.Features.Payments
             return PagedResult<PaymentDetailsResponse>.Success(list, pagination);
         }
 
-        public async Task<Result<PaymentDetailsResponse>> GetPaymentByIdAsync(int id)
+        public async Task<Result<PaymentDetailsResponse>> GetPaymentByIdAsync(
+            int id,
+            int? currentUserId = null,
+            bool isStaff = true)
         {
             var payment = await _context.TblPayments
                 .Include(p => p.Appointment)
@@ -333,8 +343,24 @@ namespace SCMS.Domain.Features.Payments
             {
                 return Result<PaymentDetailsResponse>.Failure("Payment not found.");
             }
+            if (!CanAccessAppointment(payment.Appointment, currentUserId, isStaff))
+            {
+                return Result<PaymentDetailsResponse>.Failure("Payment not found.");
+            }
 
             return Result<PaymentDetailsResponse>.Success(MapToResponse(payment, payment.Appointment));
+        }
+
+        private static bool CanAccessAppointment(TblAppointment? appointment, int? currentUserId, bool isStaff)
+        {
+            if (isStaff)
+            {
+                return true;
+            }
+
+            return currentUserId.HasValue
+                && appointment?.Patient != null
+                && appointment.Patient.UserId == currentUserId.Value;
         }
 
         private PaymentDetailsResponse MapToResponse(TblPayment p, TblAppointment a)

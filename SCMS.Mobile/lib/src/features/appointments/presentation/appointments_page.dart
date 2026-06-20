@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:signalr_netcore/signalr_client.dart';
 
+import '../../../core/realtime/signalr_service.dart';
 import '../../../shared/widgets/home_widgets.dart';
 import '../../../shared/widgets/scms_app_shell.dart';
 import '../../auth/application/auth_controller.dart';
@@ -16,6 +18,35 @@ class AppointmentsPage extends ConsumerStatefulWidget {
 }
 
 class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
+  HubConnection? _queueConnection;
+
+  @override
+  void initState() {
+    super.initState();
+    _connectQueueHub();
+  }
+
+  Future<void> _connectQueueHub() async {
+    final connection = ref.read(signalRServiceProvider).queueHub();
+    connection.on('QueueUpdated', (_) {
+      ref.read(appointmentsControllerProvider.notifier).fetchAppointments();
+    });
+
+    try {
+      await connection.start();
+      await connection.invoke('WatchClinicQueue');
+      _queueConnection = connection;
+    } catch (_) {
+      // Realtime is additive; polling/manual refresh still works.
+    }
+  }
+
+  @override
+  void dispose() {
+    _queueConnection?.stop();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);

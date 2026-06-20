@@ -35,29 +35,29 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? queryParameters,
   }) {
-    return _guard(() => _dio.get<T>(path, queryParameters: queryParameters));
+    return _guard(() => _dio.get<T>(_apiPath(path), queryParameters: queryParameters));
   }
 
   Future<Response<T>> post<T>(String path, {Object? data}) {
-    return _guard(() => _dio.post<T>(path, data: data));
+    return _guard(() => _dio.post<T>(_apiPath(path), data: data));
   }
 
   Future<Response<T>> put<T>(String path, {Object? data}) {
-    return _guard(() => _dio.put<T>(path, data: data));
+    return _guard(() => _dio.put<T>(_apiPath(path), data: data));
   }
 
   Future<Response<T>> patch<T>(String path, {Object? data}) {
-    return _guard(() => _dio.patch<T>(path, data: data));
+    return _guard(() => _dio.patch<T>(_apiPath(path), data: data));
   }
 
   Future<Response<T>> delete<T>(String path) {
-    return _guard(() => _dio.delete<T>(path));
+    return _guard(() => _dio.delete<T>(_apiPath(path)));
   }
 
   Future<Uint8List> getBytes(String path) async {
     try {
       final response = await _dio.get<List<int>>(
-        path,
+        _apiPath(path),
         options: Options(responseType: ResponseType.bytes),
       );
       final list = response.data;
@@ -86,5 +86,10 @@ class ApiClient {
         statusCode: error.response?.statusCode,
       );
     }
+  }
+
+  String _apiPath(String path) {
+    final normalized = path.startsWith('/') ? path : '/$path';
+    return normalized.toLowerCase().startsWith('/api/') ? normalized : '/api$normalized';
   }
 }

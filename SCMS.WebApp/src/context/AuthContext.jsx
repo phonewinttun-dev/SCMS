@@ -30,7 +30,8 @@ const pickUser = (data, email) => {
   return {
     ...user,
     email: user?.email || email,
-    role: String(roles?.[0] || user?.role || data?.role || "admin").toLowerCase(),
+    roles: roles.map((role) => String(role).toLowerCase()),
+    role: String(roles?.[0] || user?.role || data?.role || "user").toLowerCase(),
   };
 };
 

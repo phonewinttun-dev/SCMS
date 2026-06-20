@@ -34,6 +34,7 @@ import {
   downloadBlob
 } from "../services/scmsApi";
 import { showAlert, showError, showConfirm } from "../services/dialogs";
+import { createQueueConnection } from "../services/realtime";
 import { useLanguage } from "../context/LanguageContext";
 import { calculateQuantity, commonDosageValues, dosageOptions, fahrenheitToCelsius } from "../utils/clinical";
 
@@ -51,6 +52,7 @@ export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState([]);
   const [viewMode, setViewMode] = useState("table"); // "table" or "card"
   const [loading, setLoading] = useState(false);
+  const [liveQueueMessage, setLiveQueueMessage] = useState("");
 
   // Search & Filter State
   const [patientSearch, setPatientSearch] = useState("");
@@ -192,7 +194,7 @@ export default function AppointmentsPage() {
           setTotalCount(res.pagination.totalCount || items.length);
         }
       }
-    } catch (error) {
+    } catch {
       showError("Failed to fetch appointments list.");
     } finally {
       setLoading(false);
@@ -205,6 +207,27 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     loadAppointments(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, dateFilter]);
+
+  useEffect(() => {
+    let disposed = false;
+    const connection = createQueueConnection();
+    connection.on("QueueUpdated", (appointment) => {
+      setLiveQueueMessage(`Queue updated: ${appointment?.patientName || "next patient"} is active.`);
+      loadAppointments(page);
+    });
+    connection
+      .start()
+      .then(() => connection.invoke("WatchClinicQueue"))
+      .catch(() => {
+        if (!disposed) setLiveQueueMessage("Live queue connection is unavailable.");
+      });
+
+    return () => {
+      disposed = true;
+      connection.stop();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, dateFilter]);
 
@@ -493,6 +516,12 @@ export default function AppointmentsPage() {
         title={t.appointments}
         subtitle="Manage slots, EMR patient consultation flow, and real-time medical prescriptions."
       />
+
+      {liveQueueMessage && (
+        <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm font-bold text-indigo-700">
+          {liveQueueMessage}
+        </div>
+      )}
 
       {/* Advanced Filters */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white border border-scms-border rounded-2xl p-4 shadow-sm">

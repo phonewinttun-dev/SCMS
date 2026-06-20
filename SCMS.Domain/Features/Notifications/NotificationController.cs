@@ -9,7 +9,7 @@ namespace SCMS.Domain.Features.Notifications
 {
     [ApiController]
     [Authorize]
-    [Route("api/[controller]")]
+    [Route("api/Notifications")]
     public class NotificationController : ControllerBase
     {
         private readonly INotificationService _notificationService;

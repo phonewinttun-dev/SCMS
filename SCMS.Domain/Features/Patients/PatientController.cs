@@ -11,7 +11,7 @@ namespace SCMS.Domain.Features.Patients
 {
     [ApiController]
     [Authorize]
-    [Route("api/[controller]")]
+    [Route("api/Patients")]
     public class PatientController : ControllerBase
     {
         private readonly IPatientService _patientService;

@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using SCMS.Database.Models;
 using SCMS.Domain.DTOs.Appointments;
 using SCMS.Shared;
 using SCMS.Domain.DTOs.Notifications;
 using SCMS.Domain.Features.Notifications;
+using SCMS.Domain.Realtime;
 
 namespace SCMS.Domain.Features.Appointments
 {
@@ -11,6 +13,7 @@ namespace SCMS.Domain.Features.Appointments
     {
         private readonly AppDbContext _context;
         private readonly INotificationService _notificationService;
+        private readonly IHubContext<QueueHub>? _queueHubContext;
         private static readonly HashSet<string> AllowedStatuses = new(StringComparer.OrdinalIgnoreCase)
         {
             "pending",
@@ -19,10 +22,11 @@ namespace SCMS.Domain.Features.Appointments
             "completed"
         };
 
-        public AppointmentsService(AppDbContext context, INotificationService notificationService)
+        public AppointmentsService(AppDbContext context, INotificationService notificationService, IHubContext<QueueHub>? queueHubContext = null)
         {
             _context = context;
             _notificationService = notificationService;
+            _queueHubContext = queueHubContext;
         }
 
         #region Create Appointment
@@ -356,99 +360,84 @@ namespace SCMS.Domain.Features.Appointments
             return Result<List<AppointmentDetailsResponse>>.Success(list);
         }
 
-        #region Call Next Patient (Commented Out)
-        //public async Task<Result<AppointmentDetailsResponse>> CallNextPatientAsync()
-        //{
-        //    // Call next confirmed patient for today
-        //    var today = DateTime.UtcNow.Date;
-        //    var tomorrow = today.AddDays(1);
-        //    var nextAppointment = await _context.TblAppointments
-        //        .Include(a => a.Patient)
-        //        .Where(a => a.Datetime >= today && a.Datetime < tomorrow && a.Status == "confirmed")
-        //        .OrderBy(a => a.Id)
-        //        .FirstOrDefaultAsync();
+        #region Call Next Patient
+        public async Task<Result<AppointmentDetailsResponse>> CallNextPatientAsync()
+        {
+            var today = DateTime.UtcNow.Date;
+            var tomorrow = today.AddDays(1);
+            var nextAppointment = await _context.TblAppointments
+                .Include(a => a.Patient)
+                .Where(a => a.Datetime >= today && a.Datetime < tomorrow
+                    && (a.Status == "pending" || a.Status == "confirmed"))
+                .OrderBy(a => a.Id)
+                .FirstOrDefaultAsync();
 
-        //    if (nextAppointment == null)
-        //    {
-        //        // Try to see if there is any pending one we can auto-call
-        //        nextAppointment = await _context.TblAppointments
-        //            .Include(a => a.Patient)
-        //            .Where(a => a.Datetime >= today && a.Datetime < tomorrow && a.Status == "pending")
-        //            .OrderBy(a => a.Id)
-        //            .FirstOrDefaultAsync();
+            if (nextAppointment == null)
+            {
+                return Result<AppointmentDetailsResponse>.Failure("No more patients in queue for today.");
+            }
 
-        //        if (nextAppointment == null)
-        //        {
-        //            return Result<AppointmentDetailsResponse>.Failure("No more patients in queue for today.");
-        //        }
-        //    }
+            var earlierConfirmed = await _context.TblAppointments
+                .Where(a => a.Datetime >= today && a.Datetime < tomorrow
+                    && a.Id < nextAppointment.Id
+                    && a.Status == "confirmed")
+                .ToListAsync();
 
-        //    // Mark previous active/confirmed appointments as Completed (or let doctor do it, but here we can set it to confirmed/in-progress)
-        //    // For now, let's update this patient to 'confirmed' (or 'completed' if we want to call the next)
-        //    // But to trigger "Call Next", let's mark any current 'confirmed' that was ahead of this as 'completed'
-        //    var aheadAppointments = await _context.TblAppointments
-        //        .Where(a => a.Datetime >= today && a.Datetime < tomorrow && a.Id < nextAppointment.Id && a.Status == "confirmed")
-        //        .ToListAsync();
+            foreach (var appointment in earlierConfirmed)
+            {
+                appointment.Status = "completed";
+                appointment.UpdatedAt = DateTime.UtcNow;
+            }
 
-        //    foreach (var aa in aheadAppointments)
-        //    {
-        //        aa.Status = "completed";
-        //        aa.UpdatedAt = DateTime.UtcNow;
-        //    }
+            nextAppointment.Status = "confirmed";
+            nextAppointment.UpdatedAt = DateTime.UtcNow;
 
-        //    // Make sure the next appointment status is 'confirmed' so it shows as active in consultation
-        //    nextAppointment.Status = "confirmed";
-        //    nextAppointment.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
 
-        //    await _context.SaveChangesAsync();
+            var token = await GetTokenNumberAsync(nextAppointment);
+            var responseDto = MapToDetailsResponse(nextAppointment, token);
+            var patientUserId = nextAppointment.Patient?.UserId ?? 0;
 
-        //    var token = await GetTokenNumberAsync(nextAppointment);
-        //    var responseDto = MapToDetailsResponse(nextAppointment, token);
+            await _notificationService.CreateNotificationAsync(new CreateNotificationRequest
+            {
+                UserId = patientUserId,
+                Title = "It's Your Turn!",
+                Description = $"Doctor is ready to see you! Please proceed to the consultation room. (Token #{responseDto.TokenNumber})",
+                ActionRoute = $"/appointments/{responseDto.Id}"
+            });
 
-        //    // Create notification for the called patient
-        //    var title = "It's Your Turn!";
-        //    var description = $"Doctor is ready to see you! Please proceed to the consultation room. (Token #{responseDto.TokenNumber})";
-        //    var actionRoute = $"/appointments/{responseDto.Id}";
-        //    var patientUserId = nextAppointment.Patient?.UserId ?? 0;
+            var pendingQueue = await _context.TblAppointments
+                .Include(a => a.Patient)
+                .Where(a => a.Datetime >= today && a.Datetime < tomorrow
+                    && a.Status == "pending"
+                    && a.Id > nextAppointment.Id)
+                .OrderBy(a => a.Id)
+                .Take(2)
+                .ToListAsync();
 
-        //    await _notificationService.CreateNotificationAsync(new CreateNotificationRequest
-        //    {
-        //        UserId = patientUserId,
-        //        Title = title,
-        //        Description = description,
-        //        ActionRoute = actionRoute
-        //    });
+            if (pendingQueue.Count > 0)
+            {
+                var preCallPatientAppt = pendingQueue.Count >= 2 ? pendingQueue[1] : pendingQueue[0];
+                var preCallToken = await GetTokenNumberAsync(preCallPatientAppt);
+                var preCallDto = MapToDetailsResponse(preCallPatientAppt, preCallToken);
 
-        //    // Trigger 30-minutes pre-call notification for the patient scheduled 2 slots ahead (30 mins later)
-        //    var pendingQueue = await _context.TblAppointments
-        //        .Include(a => a.Patient)
-        //        .Where(a => a.Datetime >= today && a.Datetime < tomorrow && a.Status == "pending" && a.Id > nextAppointment.Id)
-        //        .OrderBy(a => a.Id)
-        //        .Take(2)
-        //        .ToListAsync();
+                await _notificationService.CreateNotificationAsync(new CreateNotificationRequest
+                {
+                    UserId = preCallPatientAppt.Patient?.UserId ?? 0,
+                    Title = "Appointment Coming Up",
+                    Description = $"Your appointment (Token #{preCallDto.TokenNumber}) is estimated to start in {(pendingQueue.Count >= 2 ? "30" : "15")} minutes. Please proceed to the clinic immediately.",
+                    ActionRoute = $"/appointments/{preCallDto.Id}"
+                });
+            }
 
-        //    if (pendingQueue.Count > 0)
-        //    {
-        //        var preCallPatientAppt = pendingQueue.Count >= 2 ? pendingQueue[1] : pendingQueue[0];
-        //        var preCallToken = await GetTokenNumberAsync(preCallPatientAppt);
-        //        var preCallDto = MapToDetailsResponse(preCallPatientAppt, preCallToken);
+            if (_queueHubContext != null)
+            {
+                await _queueHubContext.Clients.Group("clinic-queue").SendAsync("QueueUpdated", responseDto);
+                await _queueHubContext.Clients.Group($"appointment-{responseDto.Id}").SendAsync("AppointmentUpdated", responseDto);
+            }
 
-        //        var preCallTitle = "Appointment Coming Up";
-        //        var preCallDescription = $"Your appointment (Token #{preCallDto.TokenNumber}) is estimated to start in {(pendingQueue.Count >= 2 ? "30" : "15")} minutes. Please proceed to the clinic immediately.";
-        //        var preCallActionRoute = $"/appointments/{preCallDto.Id}";
-        //        var preCallPatientUserId = preCallPatientAppt.Patient?.UserId ?? 0;
-
-        //        await _notificationService.CreateNotificationAsync(new CreateNotificationRequest
-        //        {
-        //            UserId = preCallPatientUserId,
-        //            Title = preCallTitle,
-        //            Description = preCallDescription,
-        //            ActionRoute = preCallActionRoute
-        //        });
-        //    }
-
-        //    return Result<AppointmentDetailsResponse>.Success(responseDto, "Next patient called. Audio chime triggered.");
-        //}
+            return Result<AppointmentDetailsResponse>.Success(responseDto, "Next patient called.");
+        }
         #endregion
 
         // Helper calculations

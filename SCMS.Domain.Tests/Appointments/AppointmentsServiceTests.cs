@@ -14,7 +14,7 @@ public class AppointmentsServiceTests
         using var db = new TestDatabase();
         var user = TestData.AddUser(db);
         var patient = TestData.AddPatient(db, user, "Aye Aye");
-        var service = new AppointmentsService(db.Context);
+        var service = TestServices.CreateAppointmentsService(db);
 
         var result = await service.BookAppointmentAsync(new BookAppointmentRequest
         {
@@ -44,7 +44,7 @@ public class AppointmentsServiceTests
         var owner = TestData.AddUser(db, "Owner");
         var otherUser = TestData.AddUser(db, "Other");
         var patient = TestData.AddPatient(db, owner);
-        var service = new AppointmentsService(db.Context);
+        var service = TestServices.CreateAppointmentsService(db);
 
         var result = await service.BookAppointmentAsync(new BookAppointmentRequest
         {
@@ -64,7 +64,7 @@ public class AppointmentsServiceTests
         var user = TestData.AddUser(db);
         var patient = TestData.AddPatient(db, user);
         var appointment = TestData.AddAppointment(db, patient);
-        var service = new AppointmentsService(db.Context);
+        var service = TestServices.CreateAppointmentsService(db);
 
         var result = await service.UpdateAppointmentStatusAsync(appointment.Id, new UpdateAppointmentStatusRequest
         {
@@ -85,7 +85,7 @@ public class AppointmentsServiceTests
         TestData.AddAppointment(db, patient, DateTime.UtcNow.AddHours(2), "confirmed");
         TestData.AddAppointment(db, patient, DateTime.UtcNow.AddHours(3), "pending");
         TestData.AddAppointment(db, otherPatient, DateTime.UtcNow.AddHours(4), "confirmed");
-        var service = new AppointmentsService(db.Context);
+        var service = TestServices.CreateAppointmentsService(db);
 
         var result = await service.GetAppointmentsAsync(new AppointmentDetailsRequest
         {
@@ -99,20 +99,32 @@ public class AppointmentsServiceTests
         Assert.Equal(patient.PatientId, result.Data[0].PatientId);
     }
 
-    //[Fact]
-    //public async Task CallNextPatientAsync_ConfirmsNextPendingAppointment()
-    //{
-    //    using var db = new TestDatabase();
-    //    var user = TestData.AddUser(db);
-    //    var patient = TestData.AddPatient(db, user);
-    //    var appointment = TestData.AddAppointment(db, patient, DateTime.UtcNow.Date.AddHours(10), "pending");
-    //    var service = new AppointmentsService(db.Context);
+    [Fact]
+    public async Task CallNextPatientAsync_ConfirmsNextPendingAppointmentAndNotifiesPatient()
+    {
+        using var db = new TestDatabase();
+        var user = TestData.AddUser(db);
+        var patient = TestData.AddPatient(db, user);
+        var appointment = TestData.AddAppointment(db, patient, DateTime.UtcNow.Date.AddHours(10), "pending");
+        var service = TestServices.CreateAppointmentsService(db);
 
-    //    var result = await service.CallNextPatientAsync();
+        var result = await service.CallNextPatientAsync();
 
-    //    Assert.True(result.IsSuccess);
-    //    Assert.Equal("confirmed", result.Data!.Status);
-    //    Assert.Equal("confirmed", (await db.Context.TblAppointments.FindAsync(appointment.Id))!.Status);
-    //    Assert.Contains("It's Your Turn", db.Context.TblNotifications.Single().Title);
-    //}
+        Assert.True(result.IsSuccess);
+        Assert.Equal("confirmed", result.Data!.Status);
+        Assert.Equal("confirmed", (await db.Context.TblAppointments.FindAsync(appointment.Id))!.Status);
+        Assert.Contains("It's Your Turn", db.Context.TblNotifications.Single().Title);
+    }
+
+    [Fact]
+    public async Task CallNextPatientAsync_FailsWhenTodayQueueIsEmpty()
+    {
+        using var db = new TestDatabase();
+        var service = TestServices.CreateAppointmentsService(db);
+
+        var result = await service.CallNextPatientAsync();
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("No more patients in queue for today.", result.Message);
+    }
 }
