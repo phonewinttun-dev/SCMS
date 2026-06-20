@@ -407,8 +407,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
   // FOOTER — Toggle between Sign In and Register
   // ═════════════════════════════════════════════════════════════════════════
   Widget _buildFooter(AppStrings t, bool isDark) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 4,
       children: [
         Text(
           _isRegister ? t.alreadyHaveAccount : t.dontHaveAccount,
@@ -417,7 +419,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
             color: isDark ? ScmsColors.mutedDark : ScmsColors.mutedLight,
           ),
         ),
-        const SizedBox(width: 4),
         GestureDetector(
           onTap: _toggleMode,
           child: Text(

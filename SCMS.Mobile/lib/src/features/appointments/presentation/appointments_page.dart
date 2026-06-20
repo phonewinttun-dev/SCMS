@@ -360,7 +360,7 @@ class _PatientBookingPanelState extends ConsumerState<_PatientBookingPanel> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<int>(
-                  value: selectedPatientId,
+                  initialValue: selectedPatientId,
                   decoration: const InputDecoration(labelText: 'Family patient profile'),
                   items: [
                     for (final patient in patients)

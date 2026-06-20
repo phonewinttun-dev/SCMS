@@ -39,7 +39,7 @@ class PaymentsPage extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: invoices.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               final invoice = invoices[index];
               return Card(
@@ -91,7 +91,7 @@ class PaymentsPage extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
-              value: method,
+              initialValue: method,
               decoration: const InputDecoration(labelText: 'Payment method'),
               items: const [
                 DropdownMenuItem(value: 'kbzpay', child: Text('KBZPay')),
