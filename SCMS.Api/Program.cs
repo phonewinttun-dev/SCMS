@@ -34,15 +34,16 @@ try
 
     builder.Services.AddCors(options =>
     {
-        options.AddPolicy("ScmsWeb", policy =>
+        options.AddPolicy("ScmsWebApp", policy =>
         {
             policy
-                .SetIsOriginAllowed(_ => true)
+                .SetIsOriginAllowed(_ => true) 
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
         });
     });
+
 
 
 
@@ -56,7 +57,7 @@ try
 
             var audience =
                 builder.Configuration["Jwt:Audience"]
-                ?? "SCMS.Web";
+                ?? "SCMS.WebApp";
 
             var signingKey =
                 builder.Configuration["Jwt:SigningKey"]
@@ -152,7 +153,7 @@ try
     app.UseHttpsRedirection();
 
 
-    app.UseCors("ScmsWeb");
+    app.UseCors("ScmsWebApp");
 
     app.UseAuthentication();
 

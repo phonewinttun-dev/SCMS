@@ -31,55 +31,13 @@ INSERT INTO tbl_user_role (id, user_id, role) VALUES
 ON CONFLICT DO NOTHING;
 
 -- Case 2: One user manages multiple family patient profiles
-INSERT INTO tbl_patient (patient_id, user_id, name, mobile_no, email, date_of_birth, gender, blood_type, address, created_at, updated_at, delete_flag) VALUES
-(10001, 10003, 'Ko Aung Min', '09970001003', 'aung.min@example.test', DATE '1988-06-12', 'male', 'B+', $${
-  "ActualAddress": "No. 42, Baho Road, Sanchaung Township, Yangon",
-  "Allergies": "No known drug allergies",
-  "ChronicConditions": "Mild seasonal allergic rhinitis",
-  "PastSurgeries": "Appendectomy in 2015",
-  "FamilyHistory": "Father has hypertension",
-  "VaccinationHistory": "COVID-19 primary series and booster; tetanus booster 2024"
-}$$, CURRENT_TIMESTAMP - INTERVAL '34 days', CURRENT_TIMESTAMP, false),
-(10002, 10003, 'Daw Mya Mya', '09970001013', 'mya.mya@example.test', DATE '1958-02-03', 'female', 'O+', $${
-  "ActualAddress": "No. 42, Baho Road, Sanchaung Township, Yangon",
-  "Allergies": "Penicillin rash reported in 1998",
-  "ChronicConditions": "Type 2 diabetes mellitus; hypertension",
-  "PastSurgeries": "Cataract surgery, left eye, 2021",
-  "FamilyHistory": "Mother had stroke at age 70",
-  "VaccinationHistory": "Influenza vaccine 2025; pneumococcal vaccine 2023"
-}$$, CURRENT_TIMESTAMP - INTERVAL '33 days', CURRENT_TIMESTAMP, false),
-(10003, 10003, 'Ma Thiri Aung', '09970001023', 'thiri.aung@example.test', DATE '2018-09-21', 'female', 'A+', $${
-  "ActualAddress": "No. 42, Baho Road, Sanchaung Township, Yangon",
-  "Allergies": "Egg allergy, mild",
-  "ChronicConditions": "None",
-  "PastSurgeries": "None",
-  "FamilyHistory": "Grandmother has diabetes",
-  "VaccinationHistory": "Routine childhood immunizations up to date"
-}$$, CURRENT_TIMESTAMP - INTERVAL '30 days', CURRENT_TIMESTAMP, false),
-(10004, 10004, 'Ma Hnin Ei', '09970001004', 'hnin.ei@example.test', DATE '1995-12-08', 'female', 'AB+', $${
-  "ActualAddress": "Kan Street, Hlaing Township, Yangon",
-  "Allergies": "Dust mite sensitivity",
-  "ChronicConditions": "Intermittent asthma",
-  "PastSurgeries": "None",
-  "FamilyHistory": "Younger brother has asthma",
-  "VaccinationHistory": "COVID-19 booster 2025"
-}$$, CURRENT_TIMESTAMP - INTERVAL '25 days', CURRENT_TIMESTAMP, false),
-(10005, 10005, 'U Zaw Lin', '09970001005', 'zaw.lin@example.test', DATE '1972-04-18', 'male', 'O-', $${
-  "ActualAddress": "Pearl Condo, Bahan Township, Yangon",
-  "Allergies": "No known drug allergies",
-  "ChronicConditions": "Prediabetes; dyslipidemia",
-  "PastSurgeries": "None",
-  "FamilyHistory": "Both parents had type 2 diabetes",
-  "VaccinationHistory": "Hepatitis B completed; influenza vaccine 2025"
-}$$, CURRENT_TIMESTAMP - INTERVAL '20 days', CURRENT_TIMESTAMP, false),
-(10006, 10006, 'Ko Pyae Sone', '09970001006', 'pyae.sone@example.test', DATE '2001-11-02', 'male', 'B+', $${
-  "ActualAddress": "Student hostel, Kamayut Township, Yangon",
-  "Allergies": "No known drug allergies",
-  "ChronicConditions": "None",
-  "PastSurgeries": "None",
-  "FamilyHistory": "No significant family history",
-  "VaccinationHistory": "COVID-19 primary series; hepatitis B dose 1"
-}$$, CURRENT_TIMESTAMP - INTERVAL '12 days', CURRENT_TIMESTAMP, false)
+INSERT INTO tbl_patient (patient_id, user_id, name, mobile_no, email, date_of_birth, gender, blood_type, actual_address, allergies, chronic_conditions, past_surgeries, family_history, vaccination_history, created_at, updated_at, delete_flag) VALUES
+(10001, 10003, 'Ko Aung Min', '09970001003', 'aung.min@example.test', DATE '1988-06-12', 'male', 'B+', 'No. 42, Baho Road, Sanchaung Township, Yangon', 'No known drug allergies', 'Mild seasonal allergic rhinitis', 'Appendectomy in 2015', 'Father has hypertension', 'COVID-19 primary series and booster; tetanus booster 2024', CURRENT_TIMESTAMP - INTERVAL '34 days', CURRENT_TIMESTAMP, false),
+(10002, 10003, 'Daw Mya Mya', '09970001013', 'mya.mya@example.test', DATE '1958-02-03', 'female', 'O+', 'No. 42, Baho Road, Sanchaung Township, Yangon', 'Penicillin rash reported in 1998', 'Type 2 diabetes mellitus; hypertension', 'Cataract surgery, left eye, 2021', 'Mother had stroke at age 70', 'Influenza vaccine 2025; pneumococcal vaccine 2023', CURRENT_TIMESTAMP - INTERVAL '33 days', CURRENT_TIMESTAMP, false),
+(10003, 10003, 'Ma Thiri Aung', '09970001023', 'thiri.aung@example.test', DATE '2018-09-21', 'female', 'A+', 'No. 42, Baho Road, Sanchaung Township, Yangon', 'Egg allergy, mild', 'None', 'None', 'Grandmother has diabetes', 'Routine childhood immunizations up to date', CURRENT_TIMESTAMP - INTERVAL '30 days', CURRENT_TIMESTAMP, false),
+(10004, 10004, 'Ma Hnin Ei', '09970001004', 'hnin.ei@example.test', DATE '1995-12-08', 'female', 'AB+', 'Kan Street, Hlaing Township, Yangon', 'Dust mite sensitivity', 'Intermittent asthma', 'None', 'Younger brother has asthma', 'COVID-19 booster 2025', CURRENT_TIMESTAMP - INTERVAL '25 days', CURRENT_TIMESTAMP, false),
+(10005, 10005, 'U Zaw Lin', '09970001005', 'zaw.lin@example.test', DATE '1972-04-18', 'male', 'O-', 'Pearl Condo, Bahan Township, Yangon', 'No known drug allergies', 'Prediabetes; dyslipidemia', 'None', 'Both parents had type 2 diabetes', 'Hepatitis B completed; influenza vaccine 2025', CURRENT_TIMESTAMP - INTERVAL '20 days', CURRENT_TIMESTAMP, false),
+(10006, 10006, 'Ko Pyae Sone', '09970001006', 'pyae.sone@example.test', DATE '2001-11-02', 'male', 'B+', 'Student hostel, Kamayut Township, Yangon', 'No known drug allergies', 'None', 'None', 'No significant family history', 'COVID-19 primary series; hepatitis B dose 1', CURRENT_TIMESTAMP - INTERVAL '12 days', CURRENT_TIMESTAMP, false)
 ON CONFLICT DO NOTHING;
 
 -- Case 3: Common diagnoses seen by the clinic
@@ -146,34 +104,10 @@ INSERT INTO tbl_appointment (id, appointment_code, patient_id, datetime, status,
 ON CONFLICT DO NOTHING;
 
 -- Case 6: Completed consultations with vitals, diagnosis notes, and lab requests
-INSERT INTO tbl_prescription (id, appointment_id, patient_id, disease_id, weight_kg, blood_pressure_systolic, blood_pressure_diastolic, notes, created_at, updated_at, delete_flag) VALUES
-(10001, 10001, 10001, 10001, 68.5, 118, 78, $${
-  "ActualNotes": "Likely viral upper respiratory infection. Advised fluids, rest, and return if fever persists beyond three days.",
-  "TemperatureC": 38.2,
-  "PulseBpm": 92,
-  "Spo2Percent": 98,
-  "HeightCm": 170.0,
-  "Bmi": 23.7,
-  "LabTestRequests": "CBC only if fever continues for 48 hours"
-}$$, CURRENT_TIMESTAMP - INTERVAL '1 day', CURRENT_TIMESTAMP - INTERVAL '1 day', false),
-(10002, 10002, 10002, 10003, 57.0, 148, 92, $${
-  "ActualNotes": "Blood pressure above target. Reviewed salt intake, home BP log, and medication adherence.",
-  "TemperatureC": 36.7,
-  "PulseBpm": 78,
-  "Spo2Percent": 99,
-  "HeightCm": 154.0,
-  "Bmi": 24.0,
-  "LabTestRequests": "Fasting blood glucose, HbA1c, urine albumin-creatinine ratio"
-}$$, CURRENT_TIMESTAMP - INTERVAL '14 days', CURRENT_TIMESTAMP - INTERVAL '14 days', false),
-(10003, 10009, 10002, 10002, 58.0, 142, 88, $${
-  "ActualNotes": "Started structured diabetes follow-up. Discussed diet, walking plan, and warning signs of hypoglycemia.",
-  "TemperatureC": 36.8,
-  "PulseBpm": 82,
-  "Spo2Percent": 98,
-  "HeightCm": 154.0,
-  "Bmi": 24.5,
-  "LabTestRequests": "HbA1c in three months; lipid profile"
-}$$, CURRENT_TIMESTAMP - INTERVAL '45 days', CURRENT_TIMESTAMP - INTERVAL '45 days', false)
+INSERT INTO tbl_prescription (id, appointment_id, patient_id, disease_id, weight_kg, blood_pressure_systolic, blood_pressure_diastolic, actual_notes, temperature_c, pulse_bpm, spo2_percent, height_cm, bmi, lab_test_requests, created_at, updated_at, delete_flag) VALUES
+(10001, 10001, 10001, 10001, 68.5, 118, 78, 'Likely viral upper respiratory infection. Advised fluids, rest, and return if fever persists beyond three days.', 38.2, 92, 98, 170.0, 23.7, 'CBC only if fever continues for 48 hours', CURRENT_TIMESTAMP - INTERVAL '1 day', CURRENT_TIMESTAMP - INTERVAL '1 day', false),
+(10002, 10002, 10002, 10003, 57.0, 148, 92, 'Blood pressure above target. Reviewed salt intake, home BP log, and medication adherence.', 36.7, 78, 99, 154.0, 24.0, 'Fasting blood glucose, HbA1c, urine albumin-crearinine ratio', CURRENT_TIMESTAMP - INTERVAL '14 days', CURRENT_TIMESTAMP - INTERVAL '14 days', false),
+(10003, 10009, 10002, 10002, 58.0, 142, 88, 'Started structured diabetes follow-up. Discussed diet, walking plan, and warning signs of hypoglycemia.', 36.8, 82, 98, 154.0, 24.5, 'HbA1c in three months; lipid profile', CURRENT_TIMESTAMP - INTERVAL '45 days', CURRENT_TIMESTAMP - INTERVAL '45 days', false)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO tbl_prescription_item (id, prescription_id, medicine_id, medicine_batch_id, dosage, days, quantity, instruction, created_at, updated_at, delete_flag) VALUES
