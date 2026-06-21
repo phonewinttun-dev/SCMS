@@ -339,7 +339,10 @@ namespace SCMS.Domain.Features.Prescriptions
             return Result<PrescriptionResponse>.Failure("Prescription created but failed to load response details.");
         }
 
-        public async Task<Result<PrescriptionResponse>> GetPrescriptionDetailsAsync(int id)
+        public async Task<Result<PrescriptionResponse>> GetPrescriptionDetailsAsync(
+            int id,
+            int? currentUserId = null,
+            bool isStaff = true)
         {
             var p = await _context.TblPrescriptions
                 .Include(x => x.Patient)
@@ -354,6 +357,10 @@ namespace SCMS.Domain.Features.Prescriptions
                 .FirstOrDefaultAsync(x => x.Id == id && x.DeleteFlag != true);
 
             if (p == null)
+            {
+                return Result<PrescriptionResponse>.Failure("Prescription not found.");
+            }
+            if (!CanAccessPrescription(p, currentUserId, isStaff))
             {
                 return Result<PrescriptionResponse>.Failure("Prescription not found.");
             }
@@ -414,13 +421,28 @@ namespace SCMS.Domain.Features.Prescriptions
             });
         }
 
-        public async Task<PagedResult<PrescriptionResponse>> GetPrescriptionsAsync(int? patientId, PaginationRequest paginationRequest)
+        public async Task<PagedResult<PrescriptionResponse>> GetPrescriptionsAsync(
+            int? patientId,
+            PaginationRequest paginationRequest,
+            int? currentUserId = null,
+            bool isStaff = true)
         {
-            var query = _context.TblPrescriptions.Where(p => p.DeleteFlag != true);
+            if (!isStaff && !currentUserId.HasValue)
+            {
+                return PagedResult<PrescriptionResponse>.Failure("User id is required.");
+            }
+
+            var query = _context.TblPrescriptions
+                .Include(p => p.Patient)
+                .Where(p => p.DeleteFlag != true);
 
             if (patientId.HasValue)
             {
                 query = query.Where(p => p.PatientId == patientId.Value);
+            }
+            if (!isStaff)
+            {
+                query = query.Where(p => p.Patient.UserId == currentUserId!.Value);
             }
 
             var totalCount = await query.CountAsync();
@@ -434,7 +456,7 @@ namespace SCMS.Domain.Features.Prescriptions
             var list = new List<PrescriptionResponse>();
             foreach (var id in ids)
             {
-                var r = await GetPrescriptionDetailsAsync(id);
+                var r = await GetPrescriptionDetailsAsync(id, currentUserId, isStaff);
                 if (r.IsSuccess && r.Data != null)
                 {
                     list.Add(r.Data);
@@ -443,6 +465,18 @@ namespace SCMS.Domain.Features.Prescriptions
 
             var pagination = new Pagination(paginationRequest.PageNumber, paginationRequest.PageSize, totalCount);
             return PagedResult<PrescriptionResponse>.Success(list, pagination);
+        }
+
+        private static bool CanAccessPrescription(TblPrescription prescription, int? currentUserId, bool isStaff)
+        {
+            if (isStaff)
+            {
+                return true;
+            }
+
+            return currentUserId.HasValue
+                && prescription.Patient != null
+                && prescription.Patient.UserId == currentUserId.Value;
         }
 
         public async Task<Result<PrescriptionTemplateResponse>> SaveTemplateAsync(SaveTemplateRequest request)

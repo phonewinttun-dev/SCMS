@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:signalr_netcore/signalr_client.dart';
 
+import '../../../core/realtime/signalr_service.dart';
 import '../../../shared/widgets/home_widgets.dart';
 import '../../../shared/widgets/scms_app_shell.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../patients/application/patients_controller.dart';
+import '../../patients/domain/patient_models.dart';
 import '../application/appointments_controller.dart';
 import '../domain/appointment_models.dart';
 
@@ -16,6 +20,35 @@ class AppointmentsPage extends ConsumerStatefulWidget {
 }
 
 class _AppointmentsPageState extends ConsumerState<AppointmentsPage> {
+  HubConnection? _queueConnection;
+
+  @override
+  void initState() {
+    super.initState();
+    _connectQueueHub();
+  }
+
+  Future<void> _connectQueueHub() async {
+    final connection = ref.read(signalRServiceProvider).queueHub();
+    connection.on('QueueUpdated', (_) {
+      ref.read(appointmentsControllerProvider.notifier).fetchAppointments();
+    });
+
+    try {
+      await connection.start();
+      await connection.invoke('WatchClinicQueue');
+      _queueConnection = connection;
+    } catch (_) {
+      // Realtime is additive; polling/manual refresh still works.
+    }
+  }
+
+  @override
+  void dispose() {
+    _queueConnection?.stop();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
@@ -198,16 +231,16 @@ class _StaffAppointmentTools extends StatelessWidget {
   }
 }
 
-class _PatientBookingPanel extends StatefulWidget {
+class _PatientBookingPanel extends ConsumerStatefulWidget {
   const _PatientBookingPanel({required this.onBook});
 
   final Function(int patientId, DateTime datetime, String? notes) onBook;
 
   @override
-  State<_PatientBookingPanel> createState() => _PatientBookingPanelState();
+  ConsumerState<_PatientBookingPanel> createState() => _PatientBookingPanelState();
 }
 
-class _PatientBookingPanelState extends State<_PatientBookingPanel> {
+class _PatientBookingPanelState extends ConsumerState<_PatientBookingPanel> {
   final _notesController = TextEditingController();
 
   @override
@@ -219,6 +252,7 @@ class _PatientBookingPanelState extends State<_PatientBookingPanel> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final patientsAsync = ref.watch(patientsListProvider);
 
     return Card(
       color: colors.primaryContainer,
@@ -243,16 +277,23 @@ class _PatientBookingPanelState extends State<_PatientBookingPanel> {
                   ),
             ),
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                FilledButton.icon(
-                  onPressed: () => _showBookModal(context),
-                  icon: const Icon(Icons.add),
-                  label: const Text('New booking'),
-                ),
-              ],
+            patientsAsync.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (error, stack) => Text(
+                'Unable to load family profiles: $error',
+                style: TextStyle(color: colors.error),
+              ),
+              data: (patients) => Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  FilledButton.icon(
+                    onPressed: patients.isEmpty ? null : () => _showBookModal(context, patients),
+                    icon: const Icon(Icons.add),
+                    label: const Text('New booking'),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -260,58 +301,124 @@ class _PatientBookingPanelState extends State<_PatientBookingPanel> {
     );
   }
 
-  void _showBookModal(BuildContext context) {
+  Future<DateTime?> _pickDateTime(BuildContext context, DateTime? current) async {
+    final now = DateTime.now();
+    final initial = current ?? now.add(const Duration(days: 1));
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initial.isBefore(now) ? now : initial,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: now.add(const Duration(days: 60)),
+    );
+    if (pickedDate == null || !context.mounted) {
+      return null;
+    }
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (pickedTime == null) {
+      return null;
+    }
+
+    return DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+  }
+
+  void _showBookModal(BuildContext context, List<PatientProfileResponse> patients) {
+    var selectedPatientId = patients.first.patientId;
+    DateTime? selectedDateTime;
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            top: 24,
-            left: 24,
-            right: 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Book Appointment',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              // Simulating patient profile selection
-              const Text('Patient ID: 42 (Aung Min)'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _notesController,
-                decoration: const InputDecoration(
-                  labelText: 'Symptom/Reason',
-                  hintText: 'e.g. Fever, cough, follow-up',
+      builder: (context) => StatefulBuilder(
+        builder: (context, modalSetState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+              top: 24,
+              left: 24,
+              right: 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Book Appointment',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
-              ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  widget.onBook(
-                    42, // Aung Min's seeded ID
-                    DateTime.now().add(const Duration(days: 1)), // Book for tomorrow
-                    _notesController.text.trim(),
-                  );
-                  _notesController.clear();
-                },
-                child: const Text('Confirm Booking'),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        );
-      },
+                const SizedBox(height: 16),
+                DropdownButtonFormField<int>(
+                  initialValue: selectedPatientId,
+                  decoration: const InputDecoration(labelText: 'Family patient profile'),
+                  items: [
+                    for (final patient in patients)
+                      DropdownMenuItem<int>(
+                        value: patient.patientId,
+                        child: Text(patient.name),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      modalSetState(() => selectedPatientId = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final picked = await _pickDateTime(context, selectedDateTime);
+                    if (picked != null) {
+                      modalSetState(() => selectedDateTime = picked);
+                    }
+                  },
+                  icon: const Icon(Icons.calendar_month_outlined),
+                  label: Text(
+                    selectedDateTime == null
+                        ? 'Select appointment date and time'
+                        : DateFormat('dd-MM-yyyy @ hh:mm a').format(selectedDateTime!),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Symptom/Reason',
+                    hintText: 'e.g. Fever, cough, follow-up',
+                  ),
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: selectedDateTime == null
+                      ? null
+                      : () {
+                          Navigator.pop(context);
+                          widget.onBook(
+                            selectedPatientId,
+                            selectedDateTime!,
+                            _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+                          );
+                          _notesController.clear();
+                        },
+                  child: const Text('Confirm Booking'),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }

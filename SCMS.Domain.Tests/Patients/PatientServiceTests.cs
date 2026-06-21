@@ -16,7 +16,7 @@ public class PatientServiceTests
         var user = TestData.AddUser(db);
         var otherUser = TestData.AddUser(db);
         TestData.AddPatient(db, otherUser, "Hidden Patient");
-        var apptService = new SCMS.Domain.Features.Appointments.AppointmentsService(db.Context); var presService = new SCMS.Domain.Features.Prescriptions.PrescriptionService(db.Context); var service = new PatientService(db.Context, apptService, presService);
+        var service = TestServices.CreatePatientService(db);
 
         var createResult = await service.AddPatientProfileAsync(new PatientProfileRequest
         {
@@ -46,13 +46,50 @@ public class PatientServiceTests
         TestData.AddPatient(db, firstUser, "Aye Aye");
         TestData.AddPatient(db, secondUser, "Mg Mg");
         TestData.AddPatient(db, secondUser, "Deleted", deleted: true);
-        var apptService = new SCMS.Domain.Features.Appointments.AppointmentsService(db.Context); var presService = new SCMS.Domain.Features.Prescriptions.PrescriptionService(db.Context); var service = new PatientService(db.Context, apptService, presService);
+        var service = TestServices.CreatePatientService(db);
 
         var listResult = await service.GetPatientProfilesAsync(staff.UserId, new PaginationRequest(), isStaff: true);
 
         Assert.True(listResult.IsSuccess);
         Assert.Equal(2, listResult.Data.Count);
         Assert.Equal(new[] { "Aye Aye", "Mg Mg" }, listResult.Data.Select(p => p.Name));
+    }
+
+    [Fact]
+    public async Task AddPatientProfileAsync_StaffCreatesProfileForMatchingPatientUser()
+    {
+        using var db = new TestDatabase();
+        var staff = TestData.AddUser(db, role: "doctor");
+        var patientUser = TestData.AddUser(db, "Patient User");
+        var service = TestServices.CreatePatientService(db);
+
+        var result = await service.AddPatientProfileAsync(new PatientProfileRequest
+        {
+            Name = "Clinic Created",
+            Email = patientUser.Email
+        }, staff.UserId, isStaff: true);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(patientUser.UserId, result.Data!.UserId);
+        Assert.Equal(patientUser.UserId, db.Context.TblPatients.Single().UserId);
+    }
+
+    [Fact]
+    public async Task AddPatientProfileAsync_StaffRequiresMatchingPatientUser()
+    {
+        using var db = new TestDatabase();
+        var staff = TestData.AddUser(db, role: "doctor");
+        var service = TestServices.CreatePatientService(db);
+
+        var result = await service.AddPatientProfileAsync(new PatientProfileRequest
+        {
+            Name = "No Account",
+            Email = "missing@example.test"
+        }, staff.UserId, isStaff: true);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Patient user account not found for the provided email or mobile number.", result.Message);
+        Assert.Empty(db.Context.TblPatients);
     }
 
     [Fact]
@@ -63,7 +100,7 @@ public class PatientServiceTests
         var stranger = TestData.AddUser(db);
         var admin = TestData.AddUser(db, role: "owner");
         var patient = TestData.AddPatient(db, owner);
-        var apptService = new SCMS.Domain.Features.Appointments.AppointmentsService(db.Context); var presService = new SCMS.Domain.Features.Prescriptions.PrescriptionService(db.Context); var service = new PatientService(db.Context, apptService, presService);
+        var service = TestServices.CreatePatientService(db);
 
         var ownerResult = await service.GetPatientProfileByIdAsync(patient.PatientId, owner.UserId);
         var strangerResult = await service.GetPatientProfileByIdAsync(patient.PatientId, stranger.UserId);
@@ -91,7 +128,7 @@ public class PatientServiceTests
         });
         var prescription = TestData.AddPrescription(db, patient, appointment, disease, "Rest well", "CBC");
         TestData.AddPrescriptionItem(db, prescription, medicine, batch);
-        var apptService = new SCMS.Domain.Features.Appointments.AppointmentsService(db.Context); var presService = new SCMS.Domain.Features.Prescriptions.PrescriptionService(db.Context); var service = new PatientService(db.Context, apptService, presService);
+        var service = TestServices.CreatePatientService(db);
 
         var result = await service.GetPatientHistoryAsync(patient.PatientId, user.UserId);
 
@@ -123,7 +160,7 @@ public class PatientServiceTests
         prescription.Bmi = 22.04;
         db.Context.SaveChanges();
         TestData.AddPrescriptionItem(db, prescription, medicine);
-        var apptService = new SCMS.Domain.Features.Appointments.AppointmentsService(db.Context); var presService = new SCMS.Domain.Features.Prescriptions.PrescriptionService(db.Context); var service = new PatientService(db.Context, apptService, presService);
+        var service = TestServices.CreatePatientService(db);
 
         var result = await service.GetMedicalSummaryAsync(patient.PatientId, user.UserId);
 

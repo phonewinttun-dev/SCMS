@@ -127,7 +127,14 @@ namespace SCMS.Domain.Features.Appointments
             {
                 return BadRequest();
             }
-            var result = await _appointmentsService.GetPatientQueueStatusAsync(id);
+
+            var userId = User.GetUserId();
+            if (!userId.HasValue)
+            {
+                return Unauthorized(Result.Failure("User id is required."));
+            }
+
+            var result = await _appointmentsService.GetPatientQueueStatusAsync(id, userId.Value, User.IsStaff());
             if (result.IsFailure)
             {
                 return BadRequest(result);
@@ -135,20 +142,20 @@ namespace SCMS.Domain.Features.Appointments
             return Ok(result);
         }
 
-        //[HttpPost("call-next")]
-        //[Authorize(Roles = "owner,admin,doctor")]
-        //public async Task<IActionResult> CallNextPatient()
-        //{
-        //    if (!ModelState.IsValid)
-        //    {
-        //        return BadRequest();
-        //    }
-        //    var result = await _appointmentsService.CallNextPatientAsync();
-        //    if (result.IsFailure)
-        //    {
-        //        return BadRequest(result);
-        //    }
-        //    return Ok(result);
-        //}
+        [HttpPost("call-next")]
+        [Authorize(Roles = "owner,admin,doctor")]
+        public async Task<IActionResult> CallNextPatient()
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest();
+            }
+            var result = await _appointmentsService.CallNextPatientAsync();
+            if (result.IsFailure)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
     }
 }

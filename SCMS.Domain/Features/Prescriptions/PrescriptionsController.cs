@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SCMS.Domain.Features.Documents;
 using SCMS.Domain.DTOs.Prescriptions;
+using SCMS.Domain.Security;
 using SCMS.Shared;
 
 namespace SCMS.Domain.Features.Prescriptions
@@ -36,7 +37,13 @@ namespace SCMS.Domain.Features.Prescriptions
         [HttpGet("prescriptions/{id}")]
         public async Task<IActionResult> GetPrescriptionDetails(int id)
         {
-            var result = await _prescriptionService.GetPrescriptionDetailsAsync(id);
+            var userId = User.GetUserId();
+            if (!userId.HasValue)
+            {
+                return Unauthorized(Result.Failure("User id is required."));
+            }
+
+            var result = await _prescriptionService.GetPrescriptionDetailsAsync(id, userId.Value, User.IsStaff());
             if (result.IsFailure)
             {
                 return BadRequest(result);
@@ -47,11 +54,17 @@ namespace SCMS.Domain.Features.Prescriptions
         [HttpGet]
         public async Task<IActionResult> GetPrescriptions([FromQuery] int? patientId, [FromQuery] PaginationRequest paginationRequest)
         {
-            //paginationRequest ??= new PaginationRequest();
+            paginationRequest ??= new PaginationRequest();
             if (paginationRequest.PageNumber <= 0) paginationRequest.PageNumber = 1;
             if (paginationRequest.PageSize <= 0) paginationRequest.PageSize = 10;
 
-            var result = await _prescriptionService.GetPrescriptionsAsync(patientId, paginationRequest);
+            var userId = User.GetUserId();
+            if (!userId.HasValue)
+            {
+                return Unauthorized(Result.Failure("User id is required."));
+            }
+
+            var result = await _prescriptionService.GetPrescriptionsAsync(patientId, paginationRequest, userId.Value, User.IsStaff());
             if (result.IsFailure)
             {
                 return BadRequest(result);
@@ -102,7 +115,13 @@ namespace SCMS.Domain.Features.Prescriptions
         [HttpGet("{id}/pdf")]
         public async Task<IActionResult> GetPrescriptionPdf(int id)
         {
-            var result = await _prescriptionService.GetPrescriptionDetailsAsync(id);
+            var userId = User.GetUserId();
+            if (!userId.HasValue)
+            {
+                return Unauthorized(Result.Failure("User id is required."));
+            }
+
+            var result = await _prescriptionService.GetPrescriptionDetailsAsync(id, userId.Value, User.IsStaff());
             if (result.IsFailure || result.Data == null)
             {
                 return BadRequest(result);

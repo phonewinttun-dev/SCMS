@@ -1,8 +1,13 @@
 import {
+    Bell,
+    CalendarDays,
+    CreditCard,
+    FileText,
     Languages,
     LayoutDashboard,
     LogOut,
     Menu,
+    Users,
     X
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -118,6 +123,36 @@ export default function UserLayout() {
     };
   }, [data, activeProfileId]);
 
+  const navItems = useMemo(() => [
+    { to: "/user/dashboard", label: t.dashboard || "Dashboard", icon: LayoutDashboard },
+    { to: "/user/appointments", label: t.appointments || "Appointments", icon: CalendarDays },
+    { to: "/user/records", label: "Family Records", icon: Users },
+    { to: "/user/billing", label: t.payments || "Billing", icon: CreditCard },
+    { to: "/user/prescriptions", label: t.prescriptions || "Prescriptions", icon: FileText },
+    { to: "/user/notifications", label: t.notifications || "Notifications", icon: Bell },
+  ], [t]);
+
+  const renderNavLinks = (mobile = false) => navItems.map((item) => {
+    const Icon = item.icon;
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        onClick={mobile ? () => setDrawerOpen(false) : undefined}
+        className={({ isActive }) =>
+          `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+            isActive
+              ? "text-indigo-600 bg-indigo-50/70"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
+          }`
+        }
+      >
+        <Icon size={18} />
+        <span>{item.label}</span>
+      </NavLink>
+    );
+  });
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans text-slate-800 antialiased">
       {/* --- Sidebar Desktop view (lg and above) --- */}
@@ -133,19 +168,7 @@ export default function UserLayout() {
         </div>
 
         <nav className="flex-1 mt-6 flex flex-col gap-2 overflow-y-auto">
-          <NavLink
-            to="/user/dashboard"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                isActive
-                  ? "text-indigo-600 bg-indigo-50/70"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-800"
-              }`
-            }
-          >
-            <LayoutDashboard size={18} />
-            <span>{t.dashboard || "Dashboard"}</span>
-          </NavLink>
+          {renderNavLinks()}
         </nav>
 
         <div className="pt-4 border-t border-slate-100 flex flex-col gap-2">
@@ -199,20 +222,7 @@ export default function UserLayout() {
         </div>
 
         <nav className="flex-1 mt-6 flex flex-col gap-2 overflow-y-auto">
-          <NavLink
-            to="/user/dashboard"
-            onClick={() => setDrawerOpen(false)}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                isActive
-                  ? "text-indigo-600 bg-indigo-50/70"
-                  : "text-slate-600 hover:bg-slate-50"
-              }`
-            }
-          >
-            <LayoutDashboard size={18} />
-            <span>{t.dashboard || "Dashboard"}</span>
-          </NavLink>
+          {renderNavLinks(true)}
         </nav>
 
         <div className="pt-4 border-t border-slate-100 flex flex-col gap-2">

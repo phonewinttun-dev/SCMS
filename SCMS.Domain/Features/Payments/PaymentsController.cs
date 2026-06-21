@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SCMS.Domain.Features.Documents;
 using SCMS.Domain.DTOs.Payments;
+using SCMS.Domain.Security;
 using SCMS.Shared;
 
 namespace SCMS.Domain.Features.Payments
@@ -36,7 +37,13 @@ namespace SCMS.Domain.Features.Payments
         [HttpPost("manual-proof")]
         public async Task<IActionResult> SubmitManualPaymentProof([FromBody] ManualPaymentProofRequest request)
         {
-            var result = await _paymentService.SubmitManualPaymentProofAsync(request);
+            var userId = User.GetUserId();
+            if (!userId.HasValue)
+            {
+                return Unauthorized(Result.Failure("User id is required."));
+            }
+
+            var result = await _paymentService.SubmitManualPaymentProofAsync(request, userId.Value, User.IsStaff());
             if (result.IsFailure)
             {
                 return BadRequest(result);
@@ -79,7 +86,13 @@ namespace SCMS.Domain.Features.Payments
         [HttpGet("{id}/invoice/pdf")]
         public async Task<IActionResult> GetInvoicePdf(int id)
         {
-            var result = await _paymentService.GetPaymentByIdAsync(id);
+            var userId = User.GetUserId();
+            if (!userId.HasValue)
+            {
+                return Unauthorized(Result.Failure("User id is required."));
+            }
+
+            var result = await _paymentService.GetPaymentByIdAsync(id, userId.Value, User.IsStaff());
             if (result.IsFailure || result.Data == null)
             {
                 return BadRequest(result);

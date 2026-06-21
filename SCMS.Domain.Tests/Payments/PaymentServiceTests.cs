@@ -72,7 +72,7 @@ public class PaymentServiceTests
             AppointmentId = appointment.Id,
             PaymentMethod = "wavepay",
             Amount = 12000m,
-            ScreenshotUrl = "proof.png"
+            ScreenshotUrl = "https://example.test/proof.png"
         });
         var paymentId = proofResult.Data!.Id;
 
@@ -83,6 +83,72 @@ public class PaymentServiceTests
         Assert.Equal("paid", approveResult.Data!.PaymentStatus);
         Assert.Equal("confirmed", (await db.Context.TblAppointments.FindAsync(appointment.Id))!.Status);
         Assert.Equal(2, db.Context.TblNotifications.Count());
+    }
+
+    [Fact]
+    public async Task SubmitManualPaymentProofAsync_RejectsAppointmentOwnedByAnotherUser()
+    {
+        using var db = new TestDatabase();
+        var owner = TestData.AddUser(db);
+        var stranger = TestData.AddUser(db);
+        var patient = TestData.AddPatient(db, owner);
+        var appointment = TestData.AddAppointment(db, patient);
+        var service = new PaymentService(db.Context);
+
+        var result = await service.SubmitManualPaymentProofAsync(new ManualPaymentProofRequest
+        {
+            AppointmentId = appointment.Id,
+            PaymentMethod = "wavepay",
+            Amount = 12000m,
+            ScreenshotUrl = "https://example.test/proof.png"
+        }, stranger.UserId, isStaff: false);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Appointment not found.", result.Message);
+        Assert.Empty(db.Context.TblPayments);
+    }
+
+    [Fact]
+    public async Task GetPaymentByIdAsync_AllowsOwnerOrStaffOnly()
+    {
+        using var db = new TestDatabase();
+        var owner = TestData.AddUser(db);
+        var stranger = TestData.AddUser(db);
+        var staff = TestData.AddUser(db, role: "doctor");
+        var patient = TestData.AddPatient(db, owner);
+        var appointment = TestData.AddAppointment(db, patient);
+        var payment = TestData.AddPayment(db, appointment);
+        var service = new PaymentService(db.Context);
+
+        var ownerResult = await service.GetPaymentByIdAsync(payment.Id, owner.UserId, isStaff: false);
+        var strangerResult = await service.GetPaymentByIdAsync(payment.Id, stranger.UserId, isStaff: false);
+        var staffResult = await service.GetPaymentByIdAsync(payment.Id, staff.UserId, isStaff: true);
+
+        Assert.True(ownerResult.IsSuccess);
+        Assert.True(strangerResult.IsFailure);
+        Assert.True(staffResult.IsSuccess);
+    }
+
+    [Fact]
+    public async Task SubmitManualPaymentProofAsync_RejectsInvalidProofUrl()
+    {
+        using var db = new TestDatabase();
+        var owner = TestData.AddUser(db);
+        var patient = TestData.AddPatient(db, owner);
+        var appointment = TestData.AddAppointment(db, patient);
+        var service = new PaymentService(db.Context);
+
+        var result = await service.SubmitManualPaymentProofAsync(new ManualPaymentProofRequest
+        {
+            AppointmentId = appointment.Id,
+            PaymentMethod = "wavepay",
+            Amount = 12000m,
+            ScreenshotUrl = "proof.png"
+        }, owner.UserId, isStaff: false);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Payment proof screenshot must be a valid URL.", result.Message);
+        Assert.Empty(db.Context.TblPayments);
     }
 
     [Fact]

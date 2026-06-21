@@ -8,7 +8,7 @@ namespace SCMS.Domain.Features.Diseases
 {
     [ApiController]
     [Authorize]
-    [Route("api/[controller]")]
+    [Route("api/Diseases")]
     public class DiseaseController : ControllerBase
     {
         private readonly IDiseaseService _diseaseService;
@@ -34,6 +34,7 @@ namespace SCMS.Domain.Features.Diseases
         }
 
         [HttpPost]
+        [Authorize(Roles = "owner,admin,doctor")]
         public async Task<IActionResult> CreateDisease([FromBody] CreateDiseaseRequest request)
         {
             if (!ModelState.IsValid) { 
@@ -44,6 +45,7 @@ namespace SCMS.Domain.Features.Diseases
         }
 
         [HttpPut]
+        [Authorize(Roles = "owner,admin,doctor")]
         public async Task<IActionResult> UpdateDisease([FromBody] UpdateDiseaseRequest request)
         {
             if (!ModelState.IsValid) { 
@@ -54,6 +56,7 @@ namespace SCMS.Domain.Features.Diseases
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "owner,admin,doctor")]
         public async Task<IActionResult> DeactivateDisease(int id)
         {
             if (!ModelState.IsValid)

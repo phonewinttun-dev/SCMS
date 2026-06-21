@@ -45,11 +45,11 @@ class AuthRepository {
   }
 
   Future<AuthSession> signIn({
-    required String email,
+    required String emailOrMobile,
     required String password,
   }) async {
     final response = await _apiClient.post('/Auth/login', data: {
-      'emailOrMobile': email,
+      'emailOrMobile': emailOrMobile,
       'password': password,
     });
 
@@ -85,7 +85,7 @@ class AuthRepository {
     return AuthSession(
       accessToken: accessToken,
       refreshToken: refreshToken,
-      email: email,
+      email: emailOrMobile,
       name: name,
       userId: userId,
       role: role,

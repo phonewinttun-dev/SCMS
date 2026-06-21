@@ -100,6 +100,26 @@ namespace SCMS.Domain.Features.FollowUps
             {
                 return Result<FollowUpResponse>.Failure("Patient not found.");
             }
+            if (request.AppointmentId.HasValue)
+            {
+                var appointmentMatchesPatient = await _context.TblAppointments
+                    .AnyAsync(a => a.Id == request.AppointmentId.Value && a.PatientId == request.PatientId);
+                if (!appointmentMatchesPatient)
+                {
+                    return Result<FollowUpResponse>.Failure("Appointment does not belong to the selected patient.");
+                }
+            }
+            if (request.PrescriptionId.HasValue)
+            {
+                var prescriptionMatchesPatient = await _context.TblPrescriptions
+                    .AnyAsync(p => p.Id == request.PrescriptionId.Value
+                        && p.PatientId == request.PatientId
+                        && p.DeleteFlag != true);
+                if (!prescriptionMatchesPatient)
+                {
+                    return Result<FollowUpResponse>.Failure("Prescription does not belong to the selected patient.");
+                }
+            }
 
             // Initialize the follow-up record
             var followUp = new TblFollowUp

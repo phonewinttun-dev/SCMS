@@ -1,6 +1,12 @@
-import 'dart:developer' as developer;
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+
 Future<void> downloadFile(Uint8List bytes, String filename) async {
-  developer.log('PDF download initiated on native mobile: $filename (${bytes.length} bytes)');
+  final directory = await getApplicationDocumentsDirectory();
+  final file = File('${directory.path}/$filename');
+  await file.writeAsBytes(bytes, flush: true);
+  await OpenFilex.open(file.path);
 }

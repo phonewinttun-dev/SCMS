@@ -26,8 +26,34 @@ namespace SCMS.Domain
     {
         public static void AddDomain(this WebApplicationBuilder builder)
         {
-            var connectionString = builder.Configuration.GetConnectionString("PostgreSqlConnection");
-            builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+            var provider = builder.Configuration["Database:Provider"]?.Trim();
+            if (string.IsNullOrWhiteSpace(provider))
+            {
+                provider = "Sqlite";
+            }
+
+            builder.Services.AddDbContext<AppDbContext>(options =>
+            {
+                if (provider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase)
+                    || provider.Equals("Postgres", StringComparison.OrdinalIgnoreCase)
+                    || provider.Equals("Npgsql", StringComparison.OrdinalIgnoreCase))
+                {
+                    var connectionString = builder.Configuration.GetConnectionString("PostgreSqlConnection");
+                    options.UseNpgsql(connectionString);
+                    return;
+                }
+
+                if (provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase)
+                    || provider.Equals("SQLite", StringComparison.OrdinalIgnoreCase))
+                {
+                    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                        ?? "Data Source=scms.local.db";
+                    options.UseSqlite(connectionString);
+                    return;
+                }
+
+                throw new InvalidOperationException($"Unsupported database provider '{provider}'. Use 'Sqlite' or 'PostgreSql'.");
+            });
 
             // Cloudinary configuration
             var cloudName = new[] { "Cloudinary:CloudName", "CLOUDINARY_CLOUD_NAME", "cloud_name" }
@@ -63,7 +89,8 @@ namespace SCMS.Domain
             builder.Services.AddScoped<PaymentService>();
             builder.Services.AddScoped<PdfDocumentService>();
             builder.Services.AddScoped<ReportService>();
-            builder.Services.AddScoped<IPrescriptionService, PrescriptionService>();
+            builder.Services.AddScoped<PrescriptionService>();
+            builder.Services.AddScoped<IPrescriptionService>(sp => sp.GetRequiredService<PrescriptionService>());
             builder.Services.AddScoped<PhotoService>();
             builder.Services.AddScoped<IMcpService, McpService>();
             builder.Services.AddHostedService<InventoryMonitorService>();

@@ -1,6 +1,7 @@
 import {
     AlertCircle,
     Calendar,
+    CheckCircle2,
     Clock,
     CreditCard,
     Download,
@@ -18,28 +19,19 @@ import { showAlert, showError } from "../../services/dialogs";
 import { appointmentsApi, downloadBlob, paymentsApi, prescriptionsApi } from "../../services/scmsApi";
 import { formatTemperatureF } from "../../utils/clinical";
 
-const PRIMARY = "#4F46E5"; // Patient theme indigo-600
-const PRIMARY_LIGHT = "#EEF2FF"; // indigo-50
-const BORDER = "#E5E7EB";
-
 export default function UserDashboard() {
   const {
     data,
     activeProfile,
-    setActiveProfile,
     filteredTelemetry,
-    loading,
     loadDashboard,
     language,
     t,
     setManageOpen,
-    newProfile: parentNewProfile,
-    setNewProfile: setParentNewProfile,
   } = useOutletContext();
 
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingStep, setBookingStep] = useState(1);
-  const [bookingOpenProfileId, setBookingOpenProfileId] = useState(null);
   const [bookingForm, setBookingForm] = useState({ reason: "general", datetime: "", notes: "" });
   const [submittingBooking, setSubmittingBooking] = useState(false);
 
@@ -52,7 +44,7 @@ export default function UserDashboard() {
       const response = await prescriptionsApi.pdf(prescriptionId);
       downloadBlob(response, `prescription-${prescriptionId}.pdf`);
       await showAlert(t.saved || "Prescription downloaded successfully.");
-    } catch (error) {
+    } catch {
       await showError("Failed to download prescription PDF.");
     }
   };
@@ -62,7 +54,7 @@ export default function UserDashboard() {
       const response = await paymentsApi.invoicePdf(paymentId);
       downloadBlob(response, `invoice-${paymentId}.pdf`);
       await showAlert(t.saved || "Invoice downloaded successfully.");
-    } catch (error) {
+    } catch {
       await showError("Failed to download invoice PDF.");
     }
   };
@@ -200,7 +192,7 @@ export default function UserDashboard() {
           <div className="text-xs font-black text-slate-400 uppercase">Quick Actions</div>
           <div className="mt-3 text-lg font-black text-slate-800">{filteredTelemetry.appointments.length} Appointments</div>
           <div className="mt-6 w-full flex gap-2">
-            <button onClick={() => { setBookingOpen(true); setBookingStep(1); setBookingOpenProfileId(activeProfile.patientId); }} className="btn bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-3 py-2 font-black">Book</button>
+            <button onClick={() => { setBookingOpen(true); setBookingStep(1); }} className="btn bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-3 py-2 font-black">Book</button>
             <button onClick={() => window.scrollTo({ top: 800, behavior: 'smooth' })} className="btn btn-ghost border border-slate-200 rounded-xl px-3 py-2">Records</button>
           </div>
         </div>
@@ -264,7 +256,7 @@ export default function UserDashboard() {
                   )}
                   {appt.notes && (
                     <p className="mt-2 text-xs text-slate-500 font-medium italic border-l-2 border-indigo-200 pl-2 leading-relaxed">
-                      "{appt.notes}"
+                      &quot;{appt.notes}&quot;
                     </p>
                   )}
                 </div>
@@ -416,7 +408,7 @@ export default function UserDashboard() {
 
                   {rx.notes && (
                     <div className="mt-4 text-xs text-slate-600 font-medium italic border-t border-slate-100 pt-3">
-                      "{rx.notes}"
+                      &quot;{rx.notes}&quot;
                     </div>
                   )}
                 </div>

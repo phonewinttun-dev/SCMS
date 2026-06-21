@@ -24,7 +24,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController(text: 'user@scms.demo');
+  final _emailController = TextEditingController(text: 'aung.min@example.test');
   final _passwordController = TextEditingController(text: 'password');
   final _mobileController = TextEditingController();
 
@@ -83,7 +83,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
       );
     } else {
       await controller.signIn(
-        email: _emailController.text.trim(),
+        emailOrMobile: _emailController.text.trim(),
         password: _passwordController.text,
       );
     }
@@ -302,14 +302,14 @@ class _LoginPageState extends ConsumerState<LoginPage>
               ],
 
               // ── Email field ───────────────────────────────────────
-              _buildLabel(t.email, isDark),
+              _buildLabel(_isRegister ? t.email : '${t.email} / ${t.mobileNo}', isDark),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
+                keyboardType: _isRegister ? TextInputType.emailAddress : TextInputType.text,
                 textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
-                  hintText: t.emailHint,
+                  hintText: _isRegister ? t.emailHint : '${t.emailHint} or ${t.mobileHint}',
                   prefixIcon: Icon(
                     Icons.mail_outline_rounded,
                     color:
@@ -407,8 +407,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
   // FOOTER — Toggle between Sign In and Register
   // ═════════════════════════════════════════════════════════════════════════
   Widget _buildFooter(AppStrings t, bool isDark) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 4,
       children: [
         Text(
           _isRegister ? t.alreadyHaveAccount : t.dontHaveAccount,
@@ -417,7 +419,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
             color: isDark ? ScmsColors.mutedDark : ScmsColors.mutedLight,
           ),
         ),
-        const SizedBox(width: 4),
         GestureDetector(
           onTap: _toggleMode,
           child: Text(

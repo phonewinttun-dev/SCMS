@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using SCMS.Domain;
+using SCMS.Domain.Database;
 using SCMS.Domain.Realtime;
 using SCMS.Shared;
 
@@ -116,6 +117,8 @@ try
 
 
     var app = builder.Build();
+
+    await app.InitializeScmsDatabaseAsync();
 
 
     if (app.Environment.IsDevelopment())
