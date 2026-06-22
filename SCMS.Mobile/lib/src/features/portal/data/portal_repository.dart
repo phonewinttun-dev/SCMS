@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/app_providers.dart';
-import '../../../core/errors/app_exception.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/scms_api_response.dart';
 
 final portalRepositoryProvider = Provider<PortalRepository>((ref) {
   return PortalRepository(ref.watch(apiClientProvider));
@@ -19,13 +19,8 @@ class PortalRepository {
 
   Future<List<Map<String, dynamic>>> list(String path) async {
     final response = await _apiClient.get(path);
-    final body = response.data as Map<String, dynamic>?;
-    if (body == null) {
-      throw const AppException('Empty response from server');
-    }
-    if (body['isSuccess'] == false) {
-      throw AppException(body['message'] as String? ?? 'Request failed');
-    }
+    final body = ScmsApiResponse.parseBody(response.data);
+    ScmsApiResponse.ensureSuccess(body, fallbackMessage: 'Request failed');
 
     final data = body['data'];
     final items = data is List

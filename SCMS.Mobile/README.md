@@ -57,6 +57,21 @@ flutter test
 flutter run
 ```
 
+## Functional testing (integration tests)
+
+Functional tests live in `integration_test/` and require a running SCMS API. See [docs/functional_testing.md](docs/functional_testing.md) for step-by-step instructions.
+
+Quick start (Android emulator + local API):
+
+```sh
+# Terminal 1 — API
+dotnet run --project SCMS.Api
+
+# Terminal 2 — functional tests (Android emulator)
+cd SCMS.Mobile
+flutter test integration_test -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:5140/
+```
+
 ## Run In Browsers
 
 Chrome and Edge are usually detected as Flutter web devices:

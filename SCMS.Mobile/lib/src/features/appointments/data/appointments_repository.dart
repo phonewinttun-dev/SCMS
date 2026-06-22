@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/scms_api_response.dart';
 import '../../../core/di/app_providers.dart';
-import '../../../core/errors/app_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../domain/appointment_models.dart';
 
@@ -39,25 +39,11 @@ class AppointmentsRepository {
       queryParameters: queryParameters,
     );
 
-    final body = response.data as Map<String, dynamic>?;
-    if (body == null) {
-      throw const AppException('Empty response from server');
-    }
-
-    final isSuccess = body['isSuccess'] as bool? ?? false;
-    if (!isSuccess) {
-      throw AppException(body['message'] as String? ?? 'Failed to load appointments');
-    }
-
-    final data = body['data'] as Map<String, dynamic>?;
-    if (data == null) {
-      return [];
-    }
-
-    final items = data['items'] as List<dynamic>? ?? [];
-    return items
-        .map((e) => AppointmentDetailsResponse.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return ScmsApiResponse.parsePaginatedItems(
+      ScmsApiResponse.parseBody(response.data),
+      AppointmentDetailsResponse.fromJson,
+      failureMessage: 'Failed to load appointments',
+    );
   }
 
   Future<AppointmentDetailsResponse> bookAppointment(BookAppointmentRequest request) async {
@@ -66,22 +52,18 @@ class AppointmentsRepository {
       data: request.toJson(),
     );
 
-    final body = response.data as Map<String, dynamic>?;
-    if (body == null) {
-      throw const AppException('Empty response from server');
-    }
+    final body = ScmsApiResponse.parseBody(response.data);
+    ScmsApiResponse.ensureSuccess(
+      body,
+      fallbackMessage: 'Failed to book appointment',
+    );
 
-    final isSuccess = body['isSuccess'] as bool? ?? false;
-    if (!isSuccess) {
-      throw AppException(body['message'] as String? ?? 'Failed to book appointment');
-    }
-
-    final data = body['data'] as Map<String, dynamic>?;
-    if (data == null) {
-      throw const AppException('No data returned from appointment booking');
-    }
-
-    return AppointmentDetailsResponse.fromJson(data);
+    return AppointmentDetailsResponse.fromJson(
+      ScmsApiResponse.requireData(
+        body,
+        message: 'No data returned from appointment booking',
+      ),
+    );
   }
 
   Future<void> updateAppointmentStatus(int id, String status, {String? notes}) async {
@@ -93,16 +75,11 @@ class AppointmentsRepository {
       },
     );
 
-    // Let's check response
-    final body = response.data as Map<String, dynamic>?;
-    if (body == null) {
-      throw const AppException('Empty response from server');
-    }
-
-    final isSuccess = body['isSuccess'] as bool? ?? false;
-    if (!isSuccess) {
-      throw AppException(body['message'] as String? ?? 'Failed to update status');
-    }
+    final body = ScmsApiResponse.parseBody(response.data);
+    ScmsApiResponse.ensureSuccess(
+      body,
+      fallbackMessage: 'Failed to update status',
+    );
   }
 
   Future<void> rescheduleAppointment(int id, DateTime newDatetime, {String? notes}) async {
@@ -114,28 +91,20 @@ class AppointmentsRepository {
       },
     );
 
-    final body = response.data as Map<String, dynamic>?;
-    if (body == null) {
-      throw const AppException('Empty response from server');
-    }
-
-    final isSuccess = body['isSuccess'] as bool? ?? false;
-    if (!isSuccess) {
-      throw AppException(body['message'] as String? ?? 'Failed to reschedule appointment');
-    }
+    final body = ScmsApiResponse.parseBody(response.data);
+    ScmsApiResponse.ensureSuccess(
+      body,
+      fallbackMessage: 'Failed to reschedule appointment',
+    );
   }
 
   Future<void> callNextPatient() async {
     final response = await _apiClient.post('/Appointments/call-next');
-    final body = response.data as Map<String, dynamic>?;
-    if (body == null) {
-      throw const AppException('Empty response from server');
-    }
-
-    final isSuccess = body['isSuccess'] as bool? ?? false;
-    if (!isSuccess) {
-      throw AppException(body['message'] as String? ?? 'Failed to call next patient');
-    }
+    final body = ScmsApiResponse.parseBody(response.data);
+    ScmsApiResponse.ensureSuccess(
+      body,
+      fallbackMessage: 'Failed to call next patient',
+    );
   }
 
   ApiClient get apiClient => _apiClient;

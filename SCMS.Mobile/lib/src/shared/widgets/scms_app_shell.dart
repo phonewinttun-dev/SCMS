@@ -2,21 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/navigation/shell_destination.dart';
+import '../../core/security/user_role.dart';
 import '../../features/auth/application/auth_controller.dart';
-
-class ScmsShellDestination {
-  const ScmsShellDestination({
-    required this.path,
-    required this.label,
-    required this.icon,
-    required this.selectedIcon,
-  });
-
-  final String path;
-  final String label;
-  final IconData icon;
-  final IconData selectedIcon;
-}
 
 class ScmsAppShell extends ConsumerWidget {
   const ScmsAppShell({
@@ -34,7 +22,7 @@ class ScmsAppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authControllerProvider);
     final role = authState.value?.role.toLowerCase() ?? 'user';
-    final destinations = _destinationsFor(role);
+    final destinations = UserRole.shellDestinations(role);
     final selectedIndex = _selectedIndex(context, destinations);
     final bottomDestinations = destinations.take(5).toList();
     final bottomIndex = selectedIndex >= 0 && selectedIndex < bottomDestinations.length ? selectedIndex : 0;
@@ -76,34 +64,6 @@ class ScmsAppShell extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  static List<ScmsShellDestination> _destinationsFor(String role) {
-    final isStaff = role == 'owner' || role == 'admin' || role == 'doctor';
-    if (isStaff) {
-      return const [
-        ScmsShellDestination(path: '/dashboard', label: 'Dashboard', icon: Icons.dashboard_outlined, selectedIcon: Icons.dashboard),
-        ScmsShellDestination(path: '/appointments', label: 'Queue', icon: Icons.event_available_outlined, selectedIcon: Icons.event_available),
-        ScmsShellDestination(path: '/patients', label: 'Patients', icon: Icons.people_outline, selectedIcon: Icons.people),
-        ScmsShellDestination(path: '/medicines', label: 'Medicines', icon: Icons.medication_outlined, selectedIcon: Icons.medication),
-        ScmsShellDestination(path: '/diseases', label: 'Diseases', icon: Icons.biotech_outlined, selectedIcon: Icons.biotech),
-        ScmsShellDestination(path: '/prescriptions', label: 'Rx', icon: Icons.description_outlined, selectedIcon: Icons.description),
-        ScmsShellDestination(path: '/payments', label: 'Payments', icon: Icons.payments_outlined, selectedIcon: Icons.payments),
-        ScmsShellDestination(path: '/follow-ups', label: 'Follow-ups', icon: Icons.event_repeat_outlined, selectedIcon: Icons.event_repeat),
-        ScmsShellDestination(path: '/notifications', label: 'Alerts', icon: Icons.notifications_outlined, selectedIcon: Icons.notifications),
-        ScmsShellDestination(path: '/reports', label: 'Reports', icon: Icons.bar_chart_outlined, selectedIcon: Icons.bar_chart),
-        ScmsShellDestination(path: '/ai-assistant', label: 'AI', icon: Icons.auto_awesome_outlined, selectedIcon: Icons.auto_awesome),
-      ];
-    }
-
-    return const [
-      ScmsShellDestination(path: '/dashboard', label: 'Home', icon: Icons.dashboard_outlined, selectedIcon: Icons.dashboard),
-      ScmsShellDestination(path: '/appointments', label: 'Queue', icon: Icons.event_available_outlined, selectedIcon: Icons.event_available),
-      ScmsShellDestination(path: '/patients', label: 'Family', icon: Icons.people_outline, selectedIcon: Icons.people),
-      ScmsShellDestination(path: '/payments', label: 'Billing', icon: Icons.payments_outlined, selectedIcon: Icons.payments),
-      ScmsShellDestination(path: '/prescriptions', label: 'Rx', icon: Icons.description_outlined, selectedIcon: Icons.description),
-      ScmsShellDestination(path: '/notifications', label: 'Alerts', icon: Icons.notifications_outlined, selectedIcon: Icons.notifications),
-    ];
   }
 
   int _selectedIndex(BuildContext context, List<ScmsShellDestination> destinations) {

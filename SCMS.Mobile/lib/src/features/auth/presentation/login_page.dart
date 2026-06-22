@@ -305,6 +305,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               _buildLabel(_isRegister ? t.email : '${t.email} / ${t.mobileNo}', isDark),
               const SizedBox(height: 6),
               TextFormField(
+                key: const Key('login_email_field'),
                 controller: _emailController,
                 keyboardType: _isRegister ? TextInputType.emailAddress : TextInputType.text,
                 textInputAction: TextInputAction.next,
@@ -353,6 +354,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               _buildLabel(t.password, isDark),
               const SizedBox(height: 6),
               TextFormField(
+                key: const Key('login_password_field'),
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 textInputAction: TextInputAction.done,
@@ -546,6 +548,7 @@ class _SubmitButton extends ConsumerWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          key: const Key('login_submit_button'),
           onTap: isLoading ? null : onPressed,
           borderRadius: BorderRadius.circular(14),
           child: Container(

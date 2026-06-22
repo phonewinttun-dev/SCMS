@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/app_providers.dart';
-import '../../../core/errors/app_exception.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/scms_api_response.dart';
 import '../../../core/storage/secure_token_store.dart';
 import '../domain/auth_session.dart';
 
@@ -37,7 +37,7 @@ class AuthRepository {
     return AuthSession(
       accessToken: token,
       refreshToken: refreshToken ?? '',
-      email: '', // Not strictly needed for restored sessions
+      email: '',
       name: name ?? '',
       userId: int.tryParse(userIdStr ?? '') ?? 0,
       role: role,
@@ -53,21 +53,10 @@ class AuthRepository {
       'password': password,
     });
 
-    final body = response.data as Map<String, dynamic>?;
-    if (body == null) {
-      throw const AppException('Empty response from server');
-    }
+    final body = ScmsApiResponse.parseBody(response.data);
+    ScmsApiResponse.ensureSuccess(body, fallbackMessage: 'Login failed');
 
-    final isSuccess = body['isSuccess'] as bool? ?? false;
-    if (!isSuccess) {
-      throw AppException(body['message'] as String? ?? 'Login failed');
-    }
-
-    final data = body['data'] as Map<String, dynamic>?;
-    if (data == null) {
-      throw const AppException('No data returned from login');
-    }
-
+    final data = ScmsApiResponse.requireData(body, message: 'No data returned from login');
     final accessToken = data['accessToken'] as String? ?? '';
     final refreshToken = data['refreshToken'] as String? ?? '';
     final user = data['user'] as Map<String, dynamic>? ?? {};
@@ -92,7 +81,6 @@ class AuthRepository {
     );
   }
 
-  /// Register a new patient account.
   Future<void> register({
     required String name,
     required String email,
@@ -106,17 +94,8 @@ class AuthRepository {
       if (mobileNo != null && mobileNo.isNotEmpty) 'mobileNo': mobileNo,
     });
 
-    final body = response.data as Map<String, dynamic>?;
-    if (body == null) {
-      throw const AppException('Empty response from server');
-    }
-
-    final isSuccess = body['isSuccess'] as bool? ?? false;
-    if (!isSuccess) {
-      throw AppException(
-        body['message'] as String? ?? 'Registration failed',
-      );
-    }
+    final body = ScmsApiResponse.parseBody(response.data);
+    ScmsApiResponse.ensureSuccess(body, fallbackMessage: 'Registration failed');
   }
 
   Future<void> signOut() {

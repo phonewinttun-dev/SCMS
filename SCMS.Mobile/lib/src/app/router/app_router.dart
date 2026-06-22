@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/security/user_role.dart';
 import '../../features/appointments/presentation/appointments_page.dart';
 import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/presentation/login_page.dart';
@@ -19,15 +20,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authControllerProvider);
   final session = authState.hasValue ? authState.value : null;
   final isSignedIn = session != null;
-  final role = session?.role.toLowerCase() ?? 'user';
-  final isStaff = role == 'owner' || role == 'admin' || role == 'doctor';
-  const staffOnlyLocations = {
-    '/medicines',
-    '/diseases',
-    '/follow-ups',
-    '/reports',
-    '/ai-assistant',
-  };
+  final role = session?.role ?? 'user';
 
   return GoRouter(
     initialLocation: '/dashboard',
@@ -47,7 +40,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/dashboard';
       }
 
-      if (isSignedIn && !isStaff && staffOnlyLocations.any(state.matchedLocation.startsWith)) {
+      if (isSignedIn &&
+          !UserRole.isStaff(role) &&
+          UserRole.isStaffOnlyRoute(state.matchedLocation)) {
         return '/dashboard';
       }
 
