@@ -6,6 +6,10 @@ namespace SCMS.Database.Models;
 
 public partial class AppDbContext : DbContext
 {
+    public AppDbContext()
+    {
+    }
+
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
     {
@@ -49,8 +53,35 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<TblUserToken> TblUserTokens { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (!optionsBuilder.IsConfigured)
+        {
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+            optionsBuilder.UseNpgsql("Host=aws-1-ap-southeast-2.pooler.supabase.com;Port=6543;Database=postgres;Username=postgres.pevargmxjsdqcqzdyxak;Password=sasa123SASA123#;Pooling=false;Max Auto Prepare=0;");
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder
+            .HasPostgresEnum("auth", "aal_level", new[] { "aal1", "aal2", "aal3" })
+            .HasPostgresEnum("auth", "code_challenge_method", new[] { "s256", "plain" })
+            .HasPostgresEnum("auth", "factor_status", new[] { "unverified", "verified" })
+            .HasPostgresEnum("auth", "factor_type", new[] { "totp", "webauthn", "phone" })
+            .HasPostgresEnum("auth", "oauth_authorization_status", new[] { "pending", "approved", "denied", "expired" })
+            .HasPostgresEnum("auth", "oauth_client_type", new[] { "public", "confidential" })
+            .HasPostgresEnum("auth", "oauth_registration_type", new[] { "dynamic", "manual" })
+            .HasPostgresEnum("auth", "oauth_response_type", new[] { "code" })
+            .HasPostgresEnum("auth", "one_time_token_type", new[] { "confirmation_token", "reauthentication_token", "recovery_token", "email_change_token_new", "email_change_token_current", "phone_change_token" })
+            .HasPostgresEnum("realtime", "action", new[] { "INSERT", "UPDATE", "DELETE", "TRUNCATE", "ERROR" })
+            .HasPostgresEnum("realtime", "equality_op", new[] { "eq", "neq", "lt", "lte", "gt", "gte", "in" })
+            .HasPostgresEnum("storage", "buckettype", new[] { "STANDARD", "ANALYTICS", "VECTOR" })
+            .HasPostgresExtension("extensions", "pg_stat_statements")
+            .HasPostgresExtension("extensions", "pgcrypto")
+            .HasPostgresExtension("extensions", "uuid-ossp")
+            .HasPostgresExtension("vault", "supabase_vault");
+
         modelBuilder.Entity<TblAppointment>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("tbl_appointment_pkey");
@@ -285,13 +316,10 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.PatientId).HasColumnName("patient_id");
             entity.Property(e => e.ActualAddress).HasColumnName("actual_address");
             entity.Property(e => e.Allergies).HasColumnName("allergies");
-            entity.Property(e => e.ChronicConditions).HasColumnName("chronic_conditions");
-            entity.Property(e => e.PastSurgeries).HasColumnName("past_surgeries");
-            entity.Property(e => e.FamilyHistory).HasColumnName("family_history");
-            entity.Property(e => e.VaccinationHistory).HasColumnName("vaccination_history");
             entity.Property(e => e.BloodType)
                 .HasMaxLength(5)
                 .HasColumnName("blood_type");
+            entity.Property(e => e.ChronicConditions).HasColumnName("chronic_conditions");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("timestamp without time zone")
@@ -301,6 +329,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Email)
                 .HasMaxLength(100)
                 .HasColumnName("email");
+            entity.Property(e => e.FamilyHistory).HasColumnName("family_history");
             entity.Property(e => e.Gender)
                 .HasMaxLength(20)
                 .HasColumnName("gender");
@@ -310,12 +339,14 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Name)
                 .HasMaxLength(255)
                 .HasColumnName("name");
+            entity.Property(e => e.PastSurgeries).HasColumnName("past_surgeries");
             entity.Property(e => e.UpdatedAt)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("updated_at");
             entity.Property(e => e.UserId)
                 .HasComment("User can create family member patient profile")
                 .HasColumnName("user_id");
+            entity.Property(e => e.VaccinationHistory).HasColumnName("vaccination_history");
 
             entity.HasOne(d => d.User).WithMany(p => p.TblPatients)
                 .HasForeignKey(d => d.UserId)
@@ -393,23 +424,23 @@ public partial class AppDbContext : DbContext
             entity.ToTable("tbl_prescription");
 
             entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ActualNotes).HasColumnName("actual_notes");
             entity.Property(e => e.AppointmentId).HasColumnName("appointment_id");
             entity.Property(e => e.BloodPressureDiastolic).HasColumnName("blood_pressure_diastolic");
             entity.Property(e => e.BloodPressureSystolic).HasColumnName("blood_pressure_systolic");
+            entity.Property(e => e.Bmi).HasColumnName("bmi");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("created_at");
             entity.Property(e => e.DeleteFlag).HasColumnName("delete_flag");
             entity.Property(e => e.DiseaseId).HasColumnName("disease_id");
-            entity.Property(e => e.ActualNotes).HasColumnName("actual_notes");
-            entity.Property(e => e.TemperatureC).HasColumnName("temperature_c");
-            entity.Property(e => e.PulseBpm).HasColumnName("pulse_bpm");
-            entity.Property(e => e.Spo2Percent).HasColumnName("spo2_percent");
             entity.Property(e => e.HeightCm).HasColumnName("height_cm");
-            entity.Property(e => e.Bmi).HasColumnName("bmi");
             entity.Property(e => e.LabTestRequests).HasColumnName("lab_test_requests");
             entity.Property(e => e.PatientId).HasColumnName("patient_id");
+            entity.Property(e => e.PulseBpm).HasColumnName("pulse_bpm");
+            entity.Property(e => e.Spo2Percent).HasColumnName("spo2_percent");
+            entity.Property(e => e.TemperatureC).HasColumnName("temperature_c");
             entity.Property(e => e.UpdatedAt)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("updated_at");

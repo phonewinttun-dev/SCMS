@@ -135,7 +135,7 @@ export default function AuthPage({ mode = "login" }) {
               <input className="scms-input scms-input-icon w-full pr-12" type={showPassword ? "text" : "password"} value={form.password} onChange={(event) => update("password", event.target.value)} />
               <button 
                 type="button" 
-                className="btn btn-ghost btn-sm btn-square absolute right-2 top-1/2 -translate-y-1/2 z-10" 
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-10 text-scms-muted hover:text-scms-text transition-colors focus:outline-none" 
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();

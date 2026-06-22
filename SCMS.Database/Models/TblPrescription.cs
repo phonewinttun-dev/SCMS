@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace SCMS.Database.Models;
@@ -21,6 +21,12 @@ public partial class TblPrescription
 
     public string? ActualNotes { get; set; }
 
+    public DateTime? CreatedAt { get; set; }
+
+    public DateTime? UpdatedAt { get; set; }
+
+    public bool? DeleteFlag { get; set; }
+
     public double? TemperatureC { get; set; }
 
     public int? PulseBpm { get; set; }
@@ -32,12 +38,6 @@ public partial class TblPrescription
     public double? Bmi { get; set; }
 
     public string? LabTestRequests { get; set; }
-
-    public DateTime? CreatedAt { get; set; }
-
-    public DateTime? UpdatedAt { get; set; }
-
-    public bool? DeleteFlag { get; set; }
 
     public virtual TblAppointment Appointment { get; set; } = null!;
 
