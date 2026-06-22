@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { BrandLogoIcon } from "../../components/BrandLogo";
+import ModalPortal from "../../components/ModalPortal";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { showAlert, showError } from "../../services/dialogs";
@@ -354,7 +355,8 @@ export default function UserLayout() {
       </div>
 
       {manageOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -403,7 +405,8 @@ export default function UserLayout() {
               <button type="submit" className="btn bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-11 w-full font-black text-sm">Create Profile</button>
             </div>
           </form>
-        </div>
+          </div>
+        </ModalPortal>
       )}
 
     </div>

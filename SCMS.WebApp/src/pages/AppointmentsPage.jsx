@@ -21,6 +21,7 @@ import {
   X
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import ModalPortal from "../components/ModalPortal";
 import DateInput from "../components/DateInput";
 import PaginationControls from "../components/PaginationControls";
 import SearchForm from "../components/SearchForm";
@@ -511,7 +512,7 @@ export default function AppointmentsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 ">
       <PageHeader
         title={t.appointments}
         subtitle="Manage slots, EMR patient consultation flow, and real-time medical prescriptions."
@@ -716,7 +717,8 @@ export default function AppointmentsPage() {
 
       {/* --- APPOINTMENT DETAILS MODAL --- */}
       {detailOpen && selectedAppt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm ">
           <div className="w-full max-w-md bg-white rounded-3xl border border-scms-border p-6 shadow-2xl relative">
             <div className="flex justify-between items-start gap-3 border-b border-slate-100 pb-3 mb-4">
               <div>
@@ -757,12 +759,14 @@ export default function AppointmentsPage() {
               )}
             </div>
           </div>
-        </div>
+          </div>
+        </ModalPortal>
       )}
 
       {/* --- EMR CLINICAL CONSULT WORKSPACE MODAL (Wizard/Single-Screen EHR Layout) --- */}
       {emrOpen && activeAppt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm ">
           <div className="w-full max-w-6xl bg-white rounded-3xl border border-scms-border p-6 shadow-2xl relative max-h-[92vh] overflow-hidden flex flex-col justify-between">
             
             {/* Header */}
@@ -953,7 +957,7 @@ export default function AppointmentsPage() {
                     <span className="text-xs">Schedule Follow-up Revisit?</span>
                   </label>
                   {scheduleFollowUp && (
-                    <div className="space-y-3 animate-fadeIn">
+                    <div className="space-y-3 ">
                       <label className="block">
                         <span className="block font-bold text-slate-500 mb-1">Follow-up Due Date</span>
                         <DateInput
@@ -1142,7 +1146,8 @@ export default function AppointmentsPage() {
             </div>
 
           </div>
-        </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );

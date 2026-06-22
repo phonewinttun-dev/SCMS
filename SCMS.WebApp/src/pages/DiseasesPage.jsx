@@ -14,6 +14,7 @@ import {
   Pill
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import ModalPortal from "../components/ModalPortal";
 import PaginationControls from "../components/PaginationControls";
 import SearchForm from "../components/SearchForm";
 import { diseasesApi, prescriptionsApi, medicinesApi } from "../services/scmsApi";
@@ -275,7 +276,7 @@ export default function DiseasesPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 ">
       {/* Page Header */}
       <PageHeader
         title={t.diseases}
@@ -450,7 +451,8 @@ export default function DiseasesPage() {
 
       {/* --- ADD / EDIT DISEASE MODAL --- */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm ">
           <form
             onSubmit={handleSubmit}
             className="w-full max-w-md bg-white rounded-3xl border border-scms-border p-6 shadow-2xl space-y-4"
@@ -503,12 +505,14 @@ export default function DiseasesPage() {
               Save Disease Index
             </button>
           </form>
-        </div>
+          </div>
+        </ModalPortal>
       )}
 
       {/* --- CLINICAL PRESCRIPTION TEMPLATE Drawer/Modal (Redesigned as Centered Side-by-Side Modal) --- */}
       {templateDrawerOpen && selectedDisease && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm ">
           <div className="w-full max-w-5xl bg-white rounded-3xl border border-scms-border p-6 shadow-2xl relative max-h-[90vh] overflow-hidden flex flex-col justify-between font-sans">
             
             {/* Header */}
@@ -745,7 +749,8 @@ export default function DiseasesPage() {
             </div>
 
           </div>
-        </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );

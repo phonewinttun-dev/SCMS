@@ -15,6 +15,7 @@ import {
   X
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import ModalPortal from "../components/ModalPortal";
 import DateInput from "../components/DateInput";
 import PaginationControls from "../components/PaginationControls";
 import SearchForm from "../components/SearchForm";
@@ -150,7 +151,7 @@ export default function PrescriptionsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 ">
       {/* Page Header */}
       <PageHeader
         title={t.prescriptions}
@@ -373,7 +374,8 @@ export default function PrescriptionsPage() {
 
       {/* --- DETAILED PRESCRIPTION REVIEW MODAL --- */}
       {detailOpen && selectedRx && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm ">
           <div className="w-full max-w-3xl bg-white rounded-3xl border border-scms-border p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto font-sans">
             <button
               onClick={() => setDetailOpen(false)}
@@ -491,7 +493,8 @@ export default function PrescriptionsPage() {
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );

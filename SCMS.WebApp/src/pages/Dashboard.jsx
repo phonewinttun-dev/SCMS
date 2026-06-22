@@ -2,6 +2,7 @@ import { CalendarDays, CreditCard, Pill, Users, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
+import ModalPortal from "../components/ModalPortal";
 import StatCard from "../components/StatCard";
 import DataTable from "../components/DataTable";
 import PaginationControls from "../components/PaginationControls";
@@ -298,7 +299,8 @@ export default function Dashboard() {
 
       {/* --- APPOINTMENT DETAILS POPUP ON DASHBOARD --- */}
       {detailOpen && selectedAppt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn animate-duration-150">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm  animate-duration-150">
           <div className="w-full max-w-md bg-white rounded-3xl border border-scms-border p-6 shadow-2xl relative font-sans">
             
             <div className="flex justify-between items-start gap-3 border-b border-slate-100 pb-3 mb-4">
@@ -342,7 +344,8 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-        </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );

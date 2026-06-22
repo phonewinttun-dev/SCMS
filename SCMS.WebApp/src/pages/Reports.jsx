@@ -12,6 +12,7 @@ import {
   X
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import ModalPortal from "../components/ModalPortal";
 import DateInput from "../components/DateInput";
 import { useLanguage } from "../context/LanguageContext";
 import { downloadBlob, reportsApi } from "../services/scmsApi";
@@ -139,7 +140,7 @@ export default function Reports() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 ">
       {/* Page Header */}
       <PageHeader
         title={t.reports}
@@ -268,7 +269,8 @@ export default function Reports() {
 
       {/* --- DETAILED JSON PREVIEW MODAL --- */}
       {previewOpen && selectedRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm ">
           <div className="w-full max-w-lg bg-white rounded-3xl border border-scms-border p-6 shadow-2xl relative max-h-[80vh] overflow-y-auto font-sans">
             <button
               onClick={() => setPreviewOpen(false)}
@@ -333,7 +335,8 @@ export default function Reports() {
               </button>
             </div>
           </div>
-        </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -15,6 +15,7 @@ import {
   X
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import ModalPortal from "../components/ModalPortal";
 import PaginationControls from "../components/PaginationControls";
 import SearchForm from "../components/SearchForm";
 import { medicinesApi } from "../services/scmsApi";
@@ -202,7 +203,7 @@ export default function MedicinesPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 ">
       {/* Page Header */}
       <PageHeader
         title={t.medicines}
@@ -326,7 +327,7 @@ export default function MedicinesPage() {
                             )}
                           </div>
                           {/* Large Zoom Popover on Hover (Placed outside overflow-hidden) */}
-                          <div className="absolute left-16 top-1/2 -translate-y-1/2 hidden group-hover:block z-50 p-1.5 bg-white border border-scms-border rounded-2xl shadow-2xl w-44 h-44 animate-fadeIn pointer-events-none">
+                          <div className="absolute left-16 top-1/2 -translate-y-1/2 hidden group-hover:block z-50 p-1.5 bg-white border border-scms-border rounded-2xl shadow-2xl w-44 h-44  pointer-events-none">
                             {med.imageUrl ? (
                               <img src={med.imageUrl} alt={med.name} className="object-cover w-full h-full rounded-xl" />
                             ) : (
@@ -428,7 +429,7 @@ export default function MedicinesPage() {
                         )}
                       </div>
                       {/* Large zoom preview popup (Placed outside overflow-hidden) */}
-                      <div className="absolute left-24 top-1/2 -translate-y-1/2 hidden group-hover:block z-50 p-2 bg-white border border-scms-border rounded-3xl shadow-2xl w-48 h-48 animate-fadeIn pointer-events-none">
+                      <div className="absolute left-24 top-1/2 -translate-y-1/2 hidden group-hover:block z-50 p-2 bg-white border border-scms-border rounded-3xl shadow-2xl w-48 h-48  pointer-events-none">
                         {med.imageUrl ? (
                           <img src={med.imageUrl} alt={med.name} className="object-cover w-full h-full rounded-2xl" />
                         ) : (
@@ -516,7 +517,8 @@ export default function MedicinesPage() {
 
       {/* --- ADD / EDIT MEDICINE FORM MODAL --- */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm ">
           <form
             onSubmit={handleSubmit}
             className="w-full max-w-md bg-white rounded-3xl border border-scms-border p-6 shadow-2xl space-y-4"
@@ -619,7 +621,8 @@ export default function MedicinesPage() {
               Save Medicine Info
             </button>
           </form>
-        </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );

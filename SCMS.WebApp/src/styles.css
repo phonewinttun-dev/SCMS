@@ -218,3 +218,8 @@ input[type="number"] {
 .dark .hover\:bg-scms-primaryLight:hover {
   background-color: #1E293B !important;
 }
+
+/* Disable background scrolling when any modal/overlay is open */
+body:has(.fixed.inset-0) {
+  overflow: hidden;
+}

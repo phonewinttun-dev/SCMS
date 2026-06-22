@@ -62,7 +62,7 @@ export default function AppShell() {
         <div className={`mb-5 rounded-2xl bg-scms-primary text-white transition-all ${collapsed ? "p-2 justify-center" : "p-4"} flex`}>
           <div className={`flex items-center ${collapsed ? "justify-center w-full" : "items-center gap-3"}`}>
             {!collapsed ? (
-              <div className="animate-fadeIn">
+              <div className="">
                 <div className="text-lg font-black">{t.appName}</div>
                 <div className="text-xs font-semibold text-white/80 leading-none mt-0.5">{t.appSubtitle}</div>
               </div>
@@ -93,7 +93,7 @@ export default function AppShell() {
                 title={collapsed ? t[item.key] : undefined}
               >
                 <Icon size={18} className="shrink-0" />
-                {!collapsed && <span className="animate-fadeIn">{t[item.key]}</span>}
+                {!collapsed && <span className="">{t[item.key]}</span>}
               </NavLink>
             );
           })}
@@ -106,12 +106,12 @@ export default function AppShell() {
             title={collapsed ? t.logout : undefined}
           >
             <LogOut size={18} className="shrink-0" />
-            {!collapsed && <span className="animate-fadeIn">{t.logout}</span>}
+            {!collapsed && <span className="">{t.logout}</span>}
           </button>
         </div>
       </aside>
 
-      <main className={`transition-all ${collapsed ? "lg:pl-[84px]" : "lg:pl-[268px]"}`}>
+      <main className={`transition-[padding] duration-300 ${collapsed ? "lg:pl-[84px]" : "lg:pl-[268px]"}`}>
         <div className="mx-auto min-h-screen max-w-[1240px] px-4 py-5 md:px-6 lg:px-8">
           <header className="mb-6 flex items-center justify-between gap-4 rounded-[18px] border border-scms-border bg-white px-4 py-3 shadow-scms">
             <div className="flex items-center gap-2">

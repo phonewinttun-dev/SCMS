@@ -17,6 +17,7 @@ import {
   Truck
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import ModalPortal from "../components/ModalPortal";
 import PaginationControls from "../components/PaginationControls";
 import DateInput from "../components/DateInput";
 import SearchForm from "../components/SearchForm";
@@ -276,7 +277,7 @@ export default function BatchesPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 ">
       {/* Page Header */}
       <PageHeader
         title="Medicine Batches"
@@ -402,7 +403,7 @@ export default function BatchesPage() {
                             )}
                           </div>
                           {/* Large Hover Zoom Card (Placed outside overflow-hidden) */}
-                          <div className="absolute left-14 top-1/2 -translate-y-1/2 hidden group-hover:block z-50 p-1 bg-white border border-scms-border rounded-xl shadow-xl w-36 h-36 animate-fadeIn pointer-events-none">
+                          <div className="absolute left-14 top-1/2 -translate-y-1/2 hidden group-hover:block z-50 p-1 bg-white border border-scms-border rounded-xl shadow-xl w-36 h-36  pointer-events-none">
                             {m?.imageUrl ? (
                               <img src={m.imageUrl} alt={m?.name} className="object-cover w-full h-full rounded-lg" />
                             ) : (
@@ -501,7 +502,7 @@ export default function BatchesPage() {
                         )}
                       </div>
                       {/* Large Zoom Card (Placed outside overflow-hidden) */}
-                      <div className="absolute left-16 top-1/2 -translate-y-1/2 hidden group-hover:block z-50 p-1 bg-white border border-scms-border rounded-xl shadow-xl w-36 h-36 animate-fadeIn pointer-events-none">
+                      <div className="absolute left-16 top-1/2 -translate-y-1/2 hidden group-hover:block z-50 p-1 bg-white border border-scms-border rounded-xl shadow-xl w-36 h-36  pointer-events-none">
                         {m?.imageUrl ? (
                           <img src={m.imageUrl} alt={m?.name} className="object-cover w-full h-full rounded-lg" />
                         ) : (
@@ -563,7 +564,8 @@ export default function BatchesPage() {
 
       {/* --- ADD / EDIT BATCH FORM MODAL --- */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm ">
           <form
             onSubmit={handleSubmit}
             className="w-full max-w-lg bg-white rounded-3xl border border-scms-border p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
@@ -704,12 +706,14 @@ export default function BatchesPage() {
               Save Batch Record
             </button>
           </form>
-        </div>
+          </div>
+        </ModalPortal>
       )}
 
       {/* --- STOCK & EXPIRY ALERTS POPUP MODAL --- */}
       {alertsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm ">
           <div className="w-full max-w-xl bg-white rounded-3xl border border-scms-border p-6 shadow-2xl relative max-h-[80vh] overflow-hidden flex flex-col justify-between">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
               <h3 className="text-lg font-black text-rose-700 flex items-center gap-2">
@@ -771,7 +775,8 @@ export default function BatchesPage() {
               <X size={18} />
             </button>
           </div>
-        </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );

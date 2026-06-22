@@ -14,6 +14,7 @@ import {
   X
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import ModalPortal from "../components/ModalPortal";
 import PaginationControls from "../components/PaginationControls";
 import SearchForm from "../components/SearchForm";
 import { patientsApi, downloadBlob } from "../services/scmsApi";
@@ -459,7 +460,8 @@ export default function PatientsPage() {
 
       {/* --- CREATE PATIENT PROFILE MODAL --- */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm ">
           <form
             onSubmit={handleCreate}
             className="w-full max-w-lg bg-white rounded-3xl border border-scms-border p-6 shadow-2xl space-y-4"
@@ -627,12 +629,14 @@ export default function PatientsPage() {
               </button>
             </div>
           </form>
-        </div>
+          </div>
+        </ModalPortal>
       )}
 
       {/* --- PATIENT PROFILE DETAILS POPUP --- */}
       {detailOpen && selectedPatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm ">
           <div className="w-full max-w-2xl bg-white rounded-3xl border border-scms-border p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto">
             <button
               onClick={() => setDetailOpen(false)}
@@ -741,7 +745,8 @@ export default function PatientsPage() {
               </button>
             </div>
           </div>
-        </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );

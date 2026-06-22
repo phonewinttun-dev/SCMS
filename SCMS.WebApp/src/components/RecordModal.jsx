@@ -1,10 +1,11 @@
 import { X } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useLanguage } from "../context/LanguageContext";
 
 export default function RecordModal({ title, fields, form, onChange, onClose, onSubmit, loading }) {
   const { t } = useLanguage();
 
-  return (
+  return createPortal(
     <div className="modal modal-open">
       <div className="modal-box max-w-3xl rounded-[18px] border border-scms-border bg-white p-0 shadow-scms-modal">
         <div className="flex items-center justify-between border-b border-scms-border px-6 py-5">
@@ -72,6 +73,7 @@ export default function RecordModal({ title, fields, form, onChange, onClose, on
         onClick={onClose}
       >
       </button>
-    </div>
+    </div>,
+    document.body
   );
 }

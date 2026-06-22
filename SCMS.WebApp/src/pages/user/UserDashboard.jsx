@@ -18,6 +18,7 @@ import { useOutletContext } from "react-router-dom";
 import { showAlert, showError } from "../../services/dialogs";
 import { appointmentsApi, downloadBlob, paymentsApi, prescriptionsApi } from "../../services/scmsApi";
 import { formatTemperatureF } from "../../utils/clinical";
+import ModalPortal from "../../components/ModalPortal";
 
 export default function UserDashboard() {
   const {
@@ -152,7 +153,7 @@ export default function UserDashboard() {
   }
 
   return (
-    <div className="space-y-8 pb-12 animate-fadeIn">
+    <div className="space-y-8 pb-12 ">
       {/* Patient Card Banner */}
       <section className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl p-6 md:p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4 md:gap-6">
@@ -420,7 +421,8 @@ export default function UserDashboard() {
 
       {/* --- BOOKING WIZARD MODAL --- */}
       {bookingOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm ">
           <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
@@ -480,12 +482,14 @@ export default function UserDashboard() {
               )}
             </div>
           </div>
-        </div>
+          </div>
+        </ModalPortal>
       )}
 
       {/* --- PAYMENT PROOF MODAL --- */}
       {payingInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm ">
           <form
             onSubmit={handlePayment}
             className="w-full max-w-md bg-white rounded-3xl border border-slate-200 p-6 shadow-2xl space-y-4"
@@ -548,7 +552,8 @@ export default function UserDashboard() {
               Submit Manual Proof
             </button>
           </form>
-        </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );
