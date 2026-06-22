@@ -54,9 +54,7 @@ namespace SCMS.Domain.Features.Patients
                 }
 
                 var owner = await _context.TblUsers
-                    .FirstOrDefaultAsync(u => u.DeleteFlag != true
-                        && ((email != null && u.Email != null && u.Email.ToLower() == email)
-                            || (mobile != null && u.MobileNo == mobile)));
+                    .FirstOrDefaultAsync(u => u.DeleteFlag != true && ((u.Email != null && u.Email.ToLower() == email) || (u.MobileNo != null && u.MobileNo == mobile)));
 
                 if (owner == null)
                 {

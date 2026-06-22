@@ -15,6 +15,8 @@ public partial class TblMedicine
 
     public string? ImageUrl { get; set; }
 
+    public string? ImageId { get; set; }
+
     public decimal UnitPrice { get; set; }
 
     public DateTime? CreatedAt { get; set; }
@@ -22,8 +24,6 @@ public partial class TblMedicine
     public DateTime? UpdatedAt { get; set; }
 
     public bool? DeleteFlag { get; set; }
-
-    public string? ImageId { get; set; }
 
     public virtual TblMedicineCategory? Category { get; set; }
 
