@@ -370,3 +370,5 @@ FodyWeavers.xsd
 D:\SCMS\ZPrompt
 .sonarqube/
 
+# JetBrains IDE (user-specific; may contain datasource credentials)
+.idea/
