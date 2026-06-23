@@ -4,10 +4,11 @@ import 'package:integration_test/integration_test.dart';
 import 'package:scms_mobile/src/app/bootstrap.dart';
 
 import 'support/test_config.dart';
+import 'support/test_helpers.dart';
 
 Future<void> launchFunctionalApp(WidgetTester tester) async {
   await bootstrap(config: functionalTestConfig);
-  await tester.pumpAndSettle(const Duration(seconds: 3));
+  await pumpUntilFound(tester, find.text('Smart Clinic Management'));
 }
 
 Future<void> signInAsPatient(WidgetTester tester) async {
@@ -20,7 +21,7 @@ Future<void> signInAsPatient(WidgetTester tester) async {
     demoPatientPassword,
   );
   await tester.tap(find.byKey(const Key('login_submit_button')));
-  await tester.pumpAndSettle(const Duration(seconds: 5));
+  await pumpUntilFound(tester, find.text('Home'));
 }
 
 void main() {

@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:scms_mobile/src/core/config/app_config.dart';
 
 /// API base URL for functional tests. Override with `--dart-define`.
@@ -10,8 +12,8 @@ const functionalTestConfig = AppConfig(
   flavor: AppFlavor.development,
   apiBaseUrl: functionalTestApiBaseUrl,
   enableNetworkLogging: false,
-  connectTimeoutSeconds: 30,
-  receiveTimeoutSeconds: 30,
+  connectTimeoutSeconds: 10,
+  receiveTimeoutSeconds: 10,
 );
 
 /// Demo patient credentials from AGENTS.md (SQLite seed).

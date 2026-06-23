@@ -4,6 +4,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:scms_mobile/src/app/bootstrap.dart';
 
 import 'support/test_config.dart';
+import 'support/test_helpers.dart';
 
 Future<void> signIn(
   WidgetTester tester, {
@@ -13,7 +14,7 @@ Future<void> signIn(
   await tester.enterText(find.byKey(const Key('login_email_field')), email);
   await tester.enterText(find.byKey(const Key('login_password_field')), password);
   await tester.tap(find.byKey(const Key('login_submit_button')));
-  await tester.pumpAndSettle(const Duration(seconds: 5));
+  await pumpUntilFound(tester, find.text('Dashboard'));
 }
 
 void main() {
@@ -21,7 +22,7 @@ void main() {
 
   testWidgets('doctor shell exposes staff navigation items', (tester) async {
     await bootstrap(config: functionalTestConfig);
-    await tester.pumpAndSettle(const Duration(seconds: 3));
+    await pumpUntilFound(tester, find.text('Smart Clinic Management'));
 
     await signIn(
       tester,
