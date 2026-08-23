@@ -21,7 +21,6 @@ import { patientsApi, downloadBlob } from "../services/scmsApi";
 import { showError, showSuccess, showConfirm } from "../services/dialogs";
 import { useLanguage } from "../context/LanguageContext";
 import {
-  sanitizeText,
   validatePatientProfile,
 } from "../utils/validation";
 import useScrollLock from "../hooks/useScrollLock";

@@ -4,13 +4,13 @@ import {
   PlusIcon,
   DownloadIcon,
   Cross2Icon,
+  ExclamationTriangleIcon,
 } from "@radix-ui/react-icons";
 import PageHeader from "../../components/PageHeader";
 import { Select } from "../../components/ui/select";
 import DateInput from "../../components/DateInput";
 import { patientsApi, downloadBlob } from "../../services/scmsApi";
 import { showError, showSuccess } from "../../services/dialogs";
-import { formatDate } from "../../utils/format";
 import { validatePatientProfile } from "../../utils/validation";
 import useScrollLock from "../../hooks/useScrollLock";
 import ModalPortal from "../../components/ModalPortal";
@@ -110,8 +110,7 @@ export default function UserFamilyProfiles() {
   return (
     <div className="space-y-6 animate-fadeIn">
       <PageHeader
-        title={t.familyHealthProfiles || "Family Health Profiles & Medical Records"}
-        subtitle="Manage linked patient records for your family members, maintain clinical backgrounds, and export verified medical summary PDFs."
+        title={t.familyHealthProfiles || "Family Members"}
         actions={
           <button
             onClick={() => setManageOpen(true)}
@@ -174,8 +173,9 @@ export default function UserFamilyProfiles() {
                     </div>
                   )}
                   {profile.allergies ? (
-                    <div className="text-rose-600 dark:text-rose-400 font-semibold truncate">
-                      ⚠️ Allergy: {profile.allergies}
+                    <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-semibold truncate">
+                      <ExclamationTriangleIcon className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">Allergy: {profile.allergies}</span>
                     </div>
                   ) : (
                     <div className="italic text-[11px]">No allergies reported</div>
@@ -244,10 +244,18 @@ export default function UserFamilyProfiles() {
               <input
                 required
                 value={newProfile.name}
-                onChange={(e) => setNewProfile((p) => ({ ...p, name: e.target.value }))}
-                className="scms-input w-full text-xs"
+                onChange={(e) => {
+                  setNewProfile((p) => ({ ...p, name: e.target.value }));
+                  if (formErrors.name) setFormErrors((err) => ({ ...err, name: null }));
+                }}
+                className={`scms-input w-full text-xs ${formErrors.name ? "border-rose-500 ring-1 ring-rose-500" : ""}`}
                 placeholder="e.g. Daw Aye Aye"
               />
+              {formErrors.name && (
+                <span className="text-[11px] font-semibold text-rose-500 block mt-1">
+                  {formErrors.name}
+                </span>
+              )}
             </label>
 
             <div>
@@ -286,8 +294,17 @@ export default function UserFamilyProfiles() {
               <DateInput
                 max={new Date().toISOString().split("T")[0]}
                 value={newProfile.dateOfBirth}
-                onChange={(e) => setNewProfile((p) => ({ ...p, dateOfBirth: e.target.value }))}
+                onChange={(e) => {
+                  setNewProfile((p) => ({ ...p, dateOfBirth: e.target.value }));
+                  if (formErrors.dateOfBirth) setFormErrors((err) => ({ ...err, dateOfBirth: null }));
+                }}
+                className={formErrors.dateOfBirth ? "border-rose-500 ring-1 ring-rose-500" : ""}
               />
+              {formErrors.dateOfBirth && (
+                <span className="text-[11px] font-semibold text-rose-500 block mt-1">
+                  {formErrors.dateOfBirth}
+                </span>
+              )}
             </label>
 
             <label className="block">
@@ -298,10 +315,18 @@ export default function UserFamilyProfiles() {
                 type="tel"
                 required
                 value={newProfile.mobileNo}
-                onChange={(e) => setNewProfile((p) => ({ ...p, mobileNo: e.target.value }))}
-                className="scms-input w-full text-xs font-mono"
+                onChange={(e) => {
+                  setNewProfile((p) => ({ ...p, mobileNo: e.target.value }));
+                  if (formErrors.mobileNo) setFormErrors((err) => ({ ...err, mobileNo: null }));
+                }}
+                className={`scms-input w-full text-xs font-mono ${formErrors.mobileNo ? "border-rose-500 ring-1 ring-rose-500" : ""}`}
                 placeholder="09..."
               />
+              {formErrors.mobileNo && (
+                <span className="text-[11px] font-semibold text-rose-500 block mt-1">
+                  {formErrors.mobileNo}
+                </span>
+              )}
             </label>
 
             <label className="block sm:col-span-2">
@@ -309,10 +334,18 @@ export default function UserFamilyProfiles() {
               <textarea
                 rows={2}
                 value={newProfile.actualAddress}
-                onChange={(e) => setNewProfile((p) => ({ ...p, actualAddress: e.target.value }))}
-                className="scms-textarea w-full text-xs"
+                onChange={(e) => {
+                  setNewProfile((p) => ({ ...p, actualAddress: e.target.value }));
+                  if (formErrors.actualAddress) setFormErrors((err) => ({ ...err, actualAddress: null }));
+                }}
+                className={`scms-textarea w-full text-xs ${formErrors.actualAddress ? "border-rose-500 ring-1 ring-rose-500" : ""}`}
                 placeholder="Street / Township / City"
               />
+              {formErrors.actualAddress && (
+                <span className="text-[11px] font-semibold text-rose-500 block mt-1">
+                  {formErrors.actualAddress}
+                </span>
+              )}
             </label>
 
             <label className="block sm:col-span-2">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   DownloadIcon,
   ActivityLogIcon,
@@ -206,7 +206,7 @@ export default function Reports() {
     setHasGenerated(false);
   };
 
-  const buildReportParams = () => {
+  const buildReportParams = useCallback(() => {
     return {
       reportType: intervalValue || currentConfig?.defaultInterval || "weekly",
       statusFilter: intervalValue || currentConfig?.defaultInterval || "all",
@@ -216,7 +216,7 @@ export default function Reports() {
       month: isMonthlyMode ? Number(selectedMonth) : undefined,
       year: isMonthlyMode ? Number(selectedYear) : undefined,
     };
-  };
+  }, [intervalValue, currentConfig?.defaultInterval, isMonthlyMode, selectedYear, selectedMonth, date, isWeeklyMode, isCustomMode, startDate, endDate]);
 
   const loadReport = useCallback(async () => {
     if (!currentConfig) {
@@ -240,7 +240,7 @@ export default function Reports() {
     } finally {
       setLoading(false);
     }
-  }, [currentConfig, intervalValue, date, startDate, endDate, selectedMonth, selectedYear]);
+  }, [currentConfig, intervalValue, buildReportParams]);
 
   const handleDownloadPdf = async () => {
     if (!currentConfig) return;
@@ -274,7 +274,7 @@ export default function Reports() {
       {/* Filter and Control Panel with high z-index */}
       <section
         aria-label="Report Filter Controls"
-        className="relative z-30 rounded-3xl border border-border/80 bg-card/95 p-6 shadow-scms backdrop-blur-md"
+        className="relative z-10 rounded-3xl border border-border/80 bg-card/95 p-6 shadow-scms backdrop-blur-md"
       >
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 items-end">
           {/* Report Category Selection */}

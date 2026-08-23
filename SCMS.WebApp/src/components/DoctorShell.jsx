@@ -12,9 +12,7 @@ import {
   ExitIcon,
   SunIcon,
   MoonIcon,
-  PlayIcon,
   ChevronDownIcon,
-  GlobeIcon,
 } from "@radix-ui/react-icons";
 import BrandLogo from "./BrandLogo";
 import SkipLink from "./SkipLink";
@@ -29,8 +27,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useTheme } from "../context/ThemeContext";
-import { appointmentsApi } from "../services/scmsApi";
-import { showAlert, showError, showConfirm } from "../services/dialogs";
+import { showConfirm } from "../services/dialogs";
 import useScrollLock from "../hooks/useScrollLock";
 
 const doctorNav = [
@@ -48,8 +45,6 @@ export default function DoctorShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [callingNext, setCallingNext] = useState(false);
-  const [announcement, setAnnouncement] = useState("");
 
   useScrollLock(open);
 
@@ -66,29 +61,9 @@ export default function DoctorShell() {
     }
   };
 
-  const handleCallNext = async () => {
-    try {
-      setCallingNext(true);
-      const res = await appointmentsApi.callNext();
-      const nextToken = res?.tokenNumber || res?.data?.tokenNumber || "Next Patient";
-      setAnnouncement(`Patient with Token ${nextToken} is called to consultation.`);
-      await showAlert(`Calling Token ${nextToken} into the Consultation Room.`, "Patient Called");
-      window.dispatchEvent(new CustomEvent("scms:refresh-queue"));
-    } catch (err) {
-      showError(err?.response?.data?.message || "No more waiting patients in today's queue.");
-    } finally {
-      setCallingNext(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background text-foreground font-sans transition-colors">
       <SkipLink targetId="doctor-content" />
-
-      {/* Screen Reader Live Region for Queue Announcements */}
-      <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {announcement}
-      </div>
 
       {/* Mobile drawer backdrop */}
       {open && (
@@ -116,22 +91,6 @@ export default function DoctorShell() {
           </button>
         </div>
 
-        {/* 1-Click Call Next Quick Action */}
-        <div className="pt-4">
-          <button
-            onClick={handleCallNext}
-            disabled={callingNext}
-            className="scms-btn-primary w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white shadow-xs rounded-2xl"
-          >
-            {callingNext ? (
-              <span className="loading loading-spinner loading-xs" />
-            ) : (
-              <PlayIcon className="w-4 h-4 shrink-0" />
-            )}
-            <span>{t.callNextPatient || "Call Next Patient"}</span>
-          </button>
-        </div>
-
         {/* Doctor Navigation Links */}
         <nav className="flex-1 space-y-1.5 overflow-y-auto pt-4 pr-1 scrollbar-thin" aria-label="Doctor Navigation">
           {doctorNav.map((item) => {
@@ -155,23 +114,12 @@ export default function DoctorShell() {
             );
           })}
         </nav>
-
-        {/* Bottom controls */}
-        <div className="pt-3 border-t border-border/70 space-y-2">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 rounded-2xl text-xs font-semibold text-destructive hover:bg-destructive/10 w-full py-2.5 px-3 transition-colors"
-          >
-            <ExitIcon className="w-4 h-4 shrink-0" />
-            <span>{t.logout || "Log Out"}</span>
-          </button>
-        </div>
       </aside>
 
       {/* Main Content Area */}
       <div className="lg:pl-[260px] transition-all duration-300">
         {/* Top Navigation Bar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/80 bg-background/85 backdrop-blur-2xl px-4 sm:px-6 gap-4">
+        <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border/80 bg-background/85 backdrop-blur-2xl px-4 sm:px-6 gap-4">
           <div className="flex items-center gap-3">
             <button
               className="lg:hidden grid h-9 w-9 place-items-center rounded-2xl border border-border/80 bg-card text-foreground hover:bg-secondary transition shadow-2xs cursor-pointer"
@@ -237,30 +185,11 @@ export default function DoctorShell() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  icon={<CalendarIcon className="w-4 h-4 text-orange-500" />}
-                  onClick={() => navigate("/doctor/appointments")}
-                >
-                  Visits & Schedule
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  icon={<FileTextIcon className="w-4 h-4 text-orange-500" />}
-                  onClick={() => navigate("/doctor/prescriptions")}
-                >
-                  Prescriptions & Templates
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  icon={<GlobeIcon className="w-4 h-4" />}
-                  onClick={toggleLanguage}
-                >
-                  {language === "en" ? "မြန်မာဘာသာသို့ ပြောင်းမည်" : "Switch to English"}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
                   destructive
                   icon={<ExitIcon className="w-4 h-4" />}
                   onClick={handleLogout}
                 >
-                  {t.logout || "Log Out"}
+                  {t.logout || "Sign Out"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -268,7 +197,7 @@ export default function DoctorShell() {
         </header>
 
         {/* Doctor Main Content */}
-        <main id="doctor-content" className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+        <main id="doctor-content" className="relative z-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
           <Outlet />
         </main>
       </div>

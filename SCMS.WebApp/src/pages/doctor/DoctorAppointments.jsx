@@ -134,7 +134,7 @@ export default function DoctorAppointments() {
       />
 
       {/* Filter and Search Bar */}
-      <section className="relative z-30 grid gap-3.5 sm:grid-cols-12 rounded-3xl border border-border/80 bg-card/90 backdrop-blur-md p-4 shadow-scms">
+      <section className="relative z-10 grid gap-3.5 sm:grid-cols-12 rounded-3xl border border-border/80 bg-card/90 backdrop-blur-md p-4 shadow-scms">
         <div className="sm:col-span-4">
           <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
             Search Patient / Token
@@ -189,7 +189,7 @@ export default function DoctorAppointments() {
         columns={[
           {
             label: "Arrival Token",
-            key: (r) => (r.tokenNumber ? `Token #${r.tokenNumber}` : `Code #${r.appointmentCode || "Pending"}`),
+            key: (r) => (r.tokenNumber ? `Token ${r.tokenNumber}` : `Code ${r.appointmentCode || "Pending"}`),
             cellClassName: "font-mono font-bold text-orange-600 dark:text-orange-400",
           },
           {

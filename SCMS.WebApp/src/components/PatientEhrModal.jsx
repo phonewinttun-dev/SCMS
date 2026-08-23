@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import {
-  PersonIcon,
   DownloadIcon,
   Pencil1Icon,
   Cross2Icon,

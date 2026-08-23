@@ -488,7 +488,12 @@ export default function DiseasesPage() {
             </div>
 
             <div className="space-y-2 max-h-60 overflow-y-auto text-xs">
-              {templates.length === 0 ? (
+              {templateLoading ? (
+                <div className="py-8 text-center text-muted-foreground flex flex-col items-center gap-2">
+                  <span className="loading loading-spinner loading-sm text-primary" />
+                  <span>Loading templates...</span>
+                </div>
+              ) : templates.length === 0 ? (
                 <p className="text-slate-400 italic py-6 text-center">
                   No saved templates available yet. Templates can be saved during doctor consultation.
                 </p>

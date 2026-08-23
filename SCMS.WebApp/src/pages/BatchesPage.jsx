@@ -18,7 +18,7 @@ import SegmentedControl from "../components/SegmentedControl";
 import { Input } from "../components/ui/input";
 import { Select } from "../components/ui/select";
 import { medicinesApi } from "../services/scmsApi";
-import { showAlert, showError, showConfirm, showSuccess } from "../services/dialogs";
+import { showError, showConfirm, showSuccess } from "../services/dialogs";
 import { useLanguage } from "../context/LanguageContext";
 import { sanitizeText, validateNumberRange } from "../utils/validation";
 import { formatDate } from "../utils/format";
@@ -258,7 +258,7 @@ export default function BatchesPage() {
       />
 
       {/* Filter & Layout Switcher */}
-      <div className="relative z-30 flex flex-col sm:flex-row justify-between items-center gap-4 rounded-3xl border border-border/80 bg-card/90 backdrop-blur-md p-4 shadow-scms">
+      <div className="relative z-10 flex flex-col sm:flex-row justify-between items-center gap-4 rounded-3xl border border-border/80 bg-card/90 backdrop-blur-md p-4 shadow-scms">
         <form onSubmit={handleSearch} className="flex-1 w-full max-w-sm flex items-center gap-2">
           <Input
             type="text"

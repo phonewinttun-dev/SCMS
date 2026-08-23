@@ -9,6 +9,7 @@
 export const sanitizeText = (val) => {
   if (val == null) return "";
   let text = String(val)
+    // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") // Remove ASCII control characters
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "") // Remove <script>...</script>
     .replace(/<[^>]+>/g, "") // Remove HTML tags
@@ -253,7 +254,7 @@ export const validateClinicalVitals = ({
 /**
  * Rigorous comprehensive validation for Patient Profile creation and editing
  */
-export const validatePatientProfile = (profile, { isCreate = true } = {}) => {
+export const validatePatientProfile = (profile) => {
   const errors = {};
 
   // 1. Full Name (Required, 2-100 chars, letters/spaces/periods/hyphens)

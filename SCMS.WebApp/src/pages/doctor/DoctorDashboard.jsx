@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ActivityLogIcon,
   PlayIcon,
   CheckCircledIcon,
   ClockIcon,
-  ReloadIcon,
   HeartIcon,
 } from "@radix-ui/react-icons";
 import PageHeader from "../../components/PageHeader";
@@ -111,52 +109,29 @@ export default function DoctorDashboard() {
         title={t.doctorQueue}
         subtitle="Manage live patient queue, review arrival tokens, and proceed directly to EMR consultation."
         actions={
-          <div className="flex items-center gap-3">
-            <button
-              onClick={loadTodayQueue}
-              className="scms-btn-outline px-3 btn-target"
-              title={t.refresh}
-              aria-label={t.refresh}
-            >
-              <ReloadIcon className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            </button>
-            <button
-              onClick={handleCallNext}
-              disabled={callingNext || waitingList.length === 0}
-              className="scms-btn-primary flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md btn-target"
-            >
-              {callingNext ? (
-                <span className="loading loading-spinner loading-xs" />
-              ) : (
-                <PlayIcon className="w-4 h-4" />
-              )}
-              <span>{t.callNextPatient}</span>
-            </button>
-          </div>
+          <button
+            onClick={handleCallNext}
+            disabled={callingNext || waitingList.length === 0}
+            className="scms-btn-primary flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white shadow-scms btn-target"
+          >
+            {callingNext ? (
+              <span className="loading loading-spinner loading-xs" />
+            ) : (
+              <PlayIcon className="w-4 h-4" />
+            )}
+            <span>{t.callNextPatient}</span>
+          </button>
         }
       />
 
       {/* Metric Cards */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2">
         <StatCard
           label={t.queueWaiting}
           value={waitingList.length}
           icon={ClockIcon}
           tone="warning"
           subtitle={`${waitingList.length} patients ready in waiting area`}
-        />
-        <StatCard
-          label={t.queueInConsult}
-          value={inConsult ? 1 : 0}
-          icon={ActivityLogIcon}
-          tone="primary"
-          subtitle={
-            inConsult
-              ? `Token ${inConsult.tokenNumber || inConsult.appointmentCode} (${
-                  inConsult.patientName || inConsult.patient?.name || "Patient"
-                })`
-              : "No active consultation"
-          }
         />
         <StatCard
           label={t.queueCompleted}
@@ -252,7 +227,7 @@ export default function DoctorDashboard() {
           columns={[
             {
               label: "Arrival Token",
-              key: (r) => (r.tokenNumber ? `Token #${r.tokenNumber}` : `Code #${r.appointmentCode || "Pending"}`),
+              key: (r) => (r.tokenNumber ? `Token ${r.tokenNumber}` : `Code ${r.appointmentCode || "Pending"}`),
               cellClassName: "font-mono font-bold text-orange-600 dark:text-orange-400",
             },
             {

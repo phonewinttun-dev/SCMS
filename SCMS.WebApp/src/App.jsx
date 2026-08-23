@@ -31,7 +31,6 @@ import DoctorFollowUps from "./pages/doctor/DoctorFollowUps";
 import UserLayout from "./pages/user/UserLayout";
 import UserDashboard from "./pages/user/UserDashboard";
 import UserAppointments from "./pages/user/UserAppointments";
-import UserPrescriptions from "./pages/user/UserPrescriptions";
 import UserBilling from "./pages/user/UserBilling";
 import UserFamilyProfiles from "./pages/user/UserFamilyProfiles";
 import UserFollowUps from "./pages/user/UserFollowUps";
@@ -98,7 +97,7 @@ export default function App() {
         <Route index element={<Navigate to="/user/dashboard" replace />} />
         <Route path="dashboard" element={<UserDashboard />} />
         <Route path="appointments" element={<UserAppointments />} />
-        <Route path="prescriptions" element={<UserPrescriptions />} />
+        <Route path="prescriptions" element={<Navigate to="/user/dashboard" replace />} />
         <Route path="billing" element={<UserBilling />} />
         <Route path="family" element={<UserFamilyProfiles />} />
         <Route path="follow-ups" element={<UserFollowUps />} />

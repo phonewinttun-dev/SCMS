@@ -120,7 +120,7 @@ export default function PrescriptionsPage() {
       />
 
       {/* Filter and View Bar */}
-      <div className="relative z-30 flex flex-col sm:flex-row justify-between items-center gap-4 rounded-3xl border border-border/80 bg-card/90 backdrop-blur-md p-4 shadow-scms">
+      <div className="relative z-10 flex flex-col sm:flex-row justify-between items-center gap-4 rounded-3xl border border-border/80 bg-card/90 backdrop-blur-md p-4 shadow-scms">
         <div className="flex flex-1 flex-wrap items-center gap-3 w-full">
           <div className="flex-1 min-w-[220px]">
             <Select

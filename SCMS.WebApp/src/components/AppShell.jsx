@@ -17,7 +17,6 @@ import {
   SunIcon,
   MoonIcon,
   LayersIcon,
-  MagnifyingGlassIcon,
   BellIcon,
   ChevronDownIcon,
   ArrowRightIcon,
@@ -25,6 +24,14 @@ import {
 } from "@radix-ui/react-icons";
 import BrandLogo from "./BrandLogo";
 import SkipLink from "./SkipLink";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "./ui/dropdown-menu";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useTheme } from "../context/ThemeContext";
@@ -130,7 +137,7 @@ export default function AppShell() {
           }));
           setNotifications(mapped);
         }
-      } catch (err) {
+      } catch {
         // Fallback to default clinical notifications
         console.debug("Using fallback notifications for clinic dashboard");
       }
@@ -278,20 +285,6 @@ export default function AppShell() {
             </p>
           </div>
         )}
-
-        {/* Bottom logout controls */}
-        <div className="pt-3 border-t border-border/70 space-y-2">
-          <button
-            onClick={handleLogout}
-            className={`flex items-center rounded-2xl text-xs font-semibold text-destructive hover:bg-destructive/10 w-full py-2.5 px-3 transition-colors ${
-              collapsed ? "justify-center" : "gap-3"
-            }`}
-            title={collapsed ? t.logout : undefined}
-          >
-            <ExitIcon className="w-4 h-4 shrink-0" />
-            {!collapsed && <span>{t.logout}</span>}
-          </button>
-        </div>
       </aside>
 
       {/* Main Content Area */}
@@ -301,7 +294,7 @@ export default function AppShell() {
         }`}
       >
         {/* Top Apricot Header Navigation Bar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/80 bg-background/85 backdrop-blur-2xl px-4 sm:px-6 gap-4">
+        <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border/80 bg-background/85 backdrop-blur-2xl px-4 sm:px-6 gap-4">
           {/* Left Controls */}
           <div className="flex items-center gap-3">
             <button
@@ -478,26 +471,45 @@ export default function AppShell() {
               {language === "en" ? "မြန်မာ" : "English"}
             </button>
 
-            {/* User Profile Pill */}
-            <div className="flex items-center gap-2.5 pl-2 border-l border-border/80">
-              <div className="grid h-9 w-9 place-items-center rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 font-extrabold text-xs border border-orange-500/20">
-                {user?.name?.[0] || "O"}
-              </div>
-              <div className="hidden sm:block text-left">
-                <div className="text-xs font-bold text-foreground leading-none">
-                  {user?.name || "Olivia Rhye"}
+            {/* User Profile Pill & Dropdown Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <div className="flex items-center gap-2.5 pl-2 border-l border-border/80 cursor-pointer p-1 rounded-2xl hover:bg-secondary/60 transition">
+                  <div className="grid h-9 w-9 place-items-center rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 font-extrabold text-xs border border-orange-500/20 shadow-2xs">
+                    {user?.name?.[0]?.toUpperCase() || "A"}
+                  </div>
+                  <div className="hidden sm:block text-left">
+                    <div className="text-xs font-bold text-foreground leading-none">
+                      {user?.name || "Clinic Administrator"}
+                    </div>
+                    <div className="text-[10px] font-semibold text-muted-foreground leading-none mt-1">
+                      {user?.role || "Admin"}
+                    </div>
+                  </div>
+                  <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground hidden sm:block" />
                 </div>
-                <div className="text-[10px] font-semibold text-muted-foreground leading-none mt-1">
-                  {user?.role || "Admin"}
-                </div>
-              </div>
-              <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground hidden sm:block" />
-            </div>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="right" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="font-bold text-foreground">{user?.name || "Administrator"}</div>
+                  <div className="text-[10px] text-muted-foreground font-normal lowercase">{user?.email || "admin@scms.local"}</div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  destructive
+                  icon={<ExitIcon className="w-4 h-4" />}
+                  onClick={handleLogout}
+                >
+                  {t.logout || "Sign Out"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
         {/* Main Routed Content */}
-        <main id="main-content" className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+        <main id="main-content" className="relative z-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
           <Outlet />
         </main>
       </div>

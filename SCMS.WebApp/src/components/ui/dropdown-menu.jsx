@@ -81,7 +81,7 @@ export function DropdownMenuContent({
       tabIndex={-1}
       onClick={(e) => e.stopPropagation()}
       className={cn(
-        "absolute z-50 mt-2 min-w-[14rem] overflow-hidden rounded-2xl border border-border/80 bg-card/98 p-1.5 text-card-foreground shadow-scms-modal backdrop-blur-2xl animate-fadeIn",
+        "absolute z-[100] mt-2 min-w-[14rem] overflow-hidden rounded-2xl border border-border/80 bg-card p-1.5 text-card-foreground shadow-2xl animate-fadeIn",
         align === "right" ? "right-0" : "left-0",
         className
       )}
@@ -118,7 +118,7 @@ export function DropdownMenuItem({
       className={cn(
         "flex w-full cursor-pointer select-none items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition-colors focus-visible:outline-none",
         destructive
-          ? "text-destructive hover:bg-destructive/10"
+          ? "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:text-rose-700 dark:hover:text-rose-300 font-semibold [&>span]:text-rose-600 dark:[&>span]:text-rose-400"
           : "text-foreground hover:bg-secondary hover:text-foreground",
         disabled && "cursor-not-allowed opacity-40",
         className

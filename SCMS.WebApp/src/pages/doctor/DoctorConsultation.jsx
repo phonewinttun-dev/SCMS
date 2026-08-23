@@ -11,6 +11,7 @@ import {
   CheckCircledIcon,
   Cross2Icon,
   ClockIcon,
+  ExclamationTriangleIcon,
 } from "@radix-ui/react-icons";
 import {
   appointmentsApi,
@@ -451,7 +452,10 @@ export default function DoctorConsultation() {
 
           {patient?.allergies ? (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 dark:bg-rose-950/40 p-3.5 text-xs text-rose-800 dark:text-rose-300 max-w-sm">
-              <strong className="block font-bold">⚠️ Known Allergies:</strong>
+              <div className="flex items-center gap-1.5 font-bold mb-0.5">
+                <ExclamationTriangleIcon className="w-3.5 h-3.5 shrink-0 text-rose-600 dark:text-rose-400" />
+                <span>Known Allergies:</span>
+              </div>
               {patient.allergies}
             </div>
           ) : (

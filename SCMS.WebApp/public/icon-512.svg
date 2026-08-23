@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ea580c" />
+      <stop offset="50%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#fb923c" />
+    </linearGradient>
+    <filter id="shadow512" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+  <!-- App Icon Background -->
+  <rect width="512" height="512" rx="116" fill="url(#grad512)" />
+  <!-- Medical Cross & Pulse Center Badge -->
+  <g filter="url(#shadow512)">
+    <!-- White Circle Backdrop -->
+    <circle cx="256" cy="256" r="144" fill="#ffffff" />
+    <!-- Health Cross -->
+    <path d="M232 168 H280 V232 H344 V280 H280 V344 H232 V280 H168 V232 H232 Z" fill="#ea580c" />
+    <!-- Pulse Line Accent -->
+    <path d="M192 256 L230 256 L246 224 L266 288 L282 256 L320 256" fill="none" stroke="#f97316" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>

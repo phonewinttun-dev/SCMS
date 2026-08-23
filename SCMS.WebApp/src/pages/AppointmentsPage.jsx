@@ -29,7 +29,7 @@ import { showAlert, showError, showConfirm } from "../services/dialogs";
 import { useLanguage } from "../context/LanguageContext";
 import { calculateQuantity, commonDosageValues, dosageOptions, fahrenheitToCelsius } from "../utils/clinical";
 import { sanitizeText, validateClinicalVitals, validateNumberRange } from "../utils/validation";
-import { formatDate, formatDateTime } from "../utils/format";
+import { formatDateTime } from "../utils/format";
 import useScrollLock from "../hooks/useScrollLock";
 import ModalPortal from "../components/ModalPortal";
 

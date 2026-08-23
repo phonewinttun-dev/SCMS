@@ -4,7 +4,6 @@ import {
   CardStackIcon,
   DownloadIcon,
   CheckCircledIcon,
-  ReloadIcon,
   Cross2Icon,
   ClockIcon,
 } from "@radix-ui/react-icons";
@@ -85,21 +84,10 @@ export default function UserBilling() {
   return (
     <div className="space-y-6 animate-fadeIn">
       <PageHeader
-        title={t.invoicesAndPayments || "Clinic Billing & Mobile Payments"}
+        title={t.invoicesAndPayments || "Payment"}
         subtitle={`Review outstanding balances, submit digital wallet transfers, and download official payment receipts for ${
           activeProfile?.name || "your profile"
         }.`}
-        actions={
-          <button
-            onClick={() => loadDashboard(activeProfile?.patientId)}
-            className="scms-btn-outline px-3.5 btn-target flex items-center gap-2"
-            title={t.refresh || "Refresh"}
-            aria-label={t.refresh || "Refresh"}
-          >
-            <ReloadIcon className="w-4 h-4" />
-            <span className="text-xs font-bold hidden sm:inline">{t.refresh || "Refresh"}</span>
-          </button>
-        }
       />
 
       {/* Payment Gateway Info Banner */}

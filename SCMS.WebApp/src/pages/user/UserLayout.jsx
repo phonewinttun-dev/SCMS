@@ -1,7 +1,6 @@
 import {
   DashboardIcon,
   CalendarIcon,
-  FileTextIcon,
   CardStackIcon,
   PersonIcon,
   CheckCircledIcon,
@@ -9,14 +8,17 @@ import {
   GlobeIcon,
   HamburgerMenuIcon,
   Cross2Icon,
-  PlusIcon,
   SunIcon,
   MoonIcon,
   ChevronDownIcon,
+  DownloadIcon,
+  InfoCircledIcon,
 } from "@radix-ui/react-icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import BrandLogo from "../../components/BrandLogo";
+import MobileBottomNav from "../../components/MobileBottomNav";
+import SkipLink from "../../components/SkipLink";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -37,11 +39,10 @@ import useScrollLock from "../../hooks/useScrollLock";
 import ModalPortal from "../../components/ModalPortal";
 
 const userNav = [
-  { to: "/user/dashboard", key: "dashboard", label: "Dashboard Overview", icon: DashboardIcon },
-  { to: "/user/appointments", key: "myAppointments", label: "My Appointments", icon: CalendarIcon },
-  { to: "/user/prescriptions", key: "medicalRecordsAndPrescriptions", label: "Prescriptions & Records", icon: FileTextIcon },
-  { to: "/user/billing", key: "invoicesAndPayments", label: "Invoices & Payments", icon: CardStackIcon },
-  { to: "/user/family", key: "familyHealthProfiles", label: "Family Profiles", icon: PersonIcon },
+  { to: "/user/dashboard", key: "dashboard", label: "Dashboard", icon: DashboardIcon },
+  { to: "/user/appointments", key: "myAppointments", label: "Appointments", icon: CalendarIcon },
+  { to: "/user/billing", key: "invoicesAndPayments", label: "Payment", icon: CardStackIcon },
+  { to: "/user/family", key: "familyHealthProfiles", label: "Family Members", icon: PersonIcon },
   { to: "/user/follow-ups", key: "followUpReminders", label: "Follow-Up Checkups", icon: CheckCircledIcon },
 ];
 
@@ -58,6 +59,10 @@ export default function UserLayout() {
   const [formErrors, setFormErrors] = useState({});
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
 
   useScrollLock(manageOpen || drawerOpen);
 
@@ -95,19 +100,20 @@ export default function UserLayout() {
           setActiveProfile(null);
         }
       } catch (err) {
-        console.error("User portal telemetry error:", err);
-        setError("Unable to load patient records. Please verify your connection.");
+        console.warn("User portal telemetry load notice:", err);
+        setData({
+          patientProfiles: [],
+          upcomingAppointments: [],
+          prescriptionHistory: [],
+          outstandingBalances: [],
+        });
+        setActiveProfile(null);
       } finally {
         setLoading(false);
       }
     },
     [activeProfile?.patientId]
   );
-
-  useEffect(() => {
-    loadDashboard();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const switchActiveProfile = (profileId) => {
     const profiles =
@@ -119,6 +125,38 @@ export default function UserLayout() {
       setActiveProfile(matched);
       setDrawerOpen(false);
     }
+  };
+
+  useEffect(() => {
+    loadDashboard();
+
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    const handleBeforeInstall = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBanner(true);
+    };
+    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+    };
+  }, [loadDashboard]);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") {
+      setShowInstallBanner(false);
+    }
+    setDeferredPrompt(null);
   };
 
   const handleLogout = async () => {
@@ -204,10 +242,16 @@ export default function UserLayout() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background font-sans text-foreground antialiased transition-colors">
+      <SkipLink targetId="user-main-content" />
+
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 flex-col border-r border-border/80 bg-card/95 backdrop-blur-2xl p-5 shrink-0">
-        <div className="pb-5 border-b border-border/70">
-          <BrandLogo subtitle={t.patientPortal || "Patient Portal"} />
+      <aside
+        className={`hidden lg:flex flex-col border-r border-border/80 bg-card/95 backdrop-blur-2xl p-4 shrink-0 transition-all duration-300 ${
+          collapsed ? "w-20" : "w-64"
+        }`}
+      >
+        <div className="pb-4 border-b border-border/70">
+          <BrandLogo subtitle={t.patientPortal || "Patient Portal"} collapsed={collapsed} />
         </div>
 
         <nav className="flex-1 mt-6 flex flex-col gap-1.5 overflow-y-auto scrollbar-thin" aria-label="Patient Navigation">
@@ -217,8 +261,11 @@ export default function UserLayout() {
               <NavLink
                 key={item.to}
                 to={item.to}
+                title={collapsed ? t[item.key] || item.label : undefined}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all ${
+                  `flex items-center rounded-2xl px-3.5 py-2.5 text-xs font-semibold transition-all ${
+                    collapsed ? "justify-center gap-0" : "gap-3"
+                  } ${
                     isActive
                       ? "bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/60 dark:border-orange-900/40 shadow-xs"
                       : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
@@ -226,7 +273,7 @@ export default function UserLayout() {
                 }
               >
                 <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
-                <span>{t[item.key] || item.label}</span>
+                {!collapsed && <span>{t[item.key] || item.label}</span>}
               </NavLink>
             );
           })}
@@ -235,24 +282,23 @@ export default function UserLayout() {
         <div className="pt-4 border-t border-border/70 flex flex-col gap-1.5">
           <button
             onClick={toggleTheme}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground w-full transition-colors btn-target"
+            title={collapsed ? (isDark ? "Light Mode" : "Dark Mode") : undefined}
+            className={`flex items-center rounded-2xl py-2.5 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground w-full transition-colors btn-target ${
+              collapsed ? "justify-center px-0" : "gap-3 px-3.5"
+            }`}
           >
             {isDark ? <SunIcon className="w-4 h-4 text-amber-400 shrink-0" /> : <MoonIcon className="w-4 h-4 shrink-0" />}
-            <span>{isDark ? "Light Mode" : "Dark Mode"}</span>
+            {!collapsed && <span>{isDark ? "Light Mode" : "Dark Mode"}</span>}
           </button>
           <button
             onClick={toggleLanguage}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground w-full transition-colors btn-target"
+            title={collapsed ? (language === "en" ? "မြန်မာ" : "English") : undefined}
+            className={`flex items-center rounded-2xl py-2.5 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground w-full transition-colors btn-target ${
+              collapsed ? "justify-center px-0" : "gap-3 px-3.5"
+            }`}
           >
             <GlobeIcon className="w-4 h-4 shrink-0" />
-            <span>{language === "en" ? "မြန်မာ" : "English"}</span>
-          </button>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold text-destructive hover:bg-destructive/10 w-full transition-colors btn-target"
-          >
-            <ExitIcon className="w-4 h-4 shrink-0" />
-            <span>{t.logout || "Logout"}</span>
+            {!collapsed && <span>{language === "en" ? "မြန်မာ" : "English"}</span>}
           </button>
         </div>
       </aside>
@@ -327,28 +373,33 @@ export default function UserLayout() {
             <GlobeIcon className="w-4 h-4 shrink-0" />
             <span>{language === "en" ? "မြန်မာ" : "English"}</span>
           </button>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold text-destructive hover:bg-destructive/10 w-full btn-target"
-          >
-            <ExitIcon className="w-4 h-4 shrink-0" />
-            <span>{t.logout || "Logout"}</span>
-          </button>
         </div>
       </aside>
 
       {/* Main Viewport */}
       <div className="flex flex-1 flex-col h-full overflow-hidden">
         {/* Top Header */}
-        <header className="flex h-16 w-full items-center justify-between border-b border-border/80 bg-background/85 backdrop-blur-2xl px-4 md:px-8 shrink-0">
+        <header className="sticky top-0 z-50 flex h-16 w-full items-center justify-between border-b border-border/80 bg-background/85 backdrop-blur-2xl px-4 md:px-8 shrink-0">
           <div className="flex items-center gap-3">
+            {/* Mobile Three Stripe Hamburger Button (Opens mobile drawer) */}
             <button
               onClick={() => setDrawerOpen(true)}
               className="lg:hidden p-2 rounded-2xl text-foreground hover:bg-secondary border border-border/80 shadow-2xs cursor-pointer"
-              aria-label="Toggle Navigation"
+              aria-label="Open mobile navigation"
             >
               <HamburgerMenuIcon className="w-5 h-5" />
             </button>
+
+            {/* Desktop Three Stripe Hamburger Button (Collapses / Expands desktop sidebar) */}
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="hidden lg:grid h-10 w-10 place-items-center rounded-2xl text-foreground hover:bg-secondary border border-border/80 shadow-2xs cursor-pointer transition"
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <HamburgerMenuIcon className="w-5 h-5" />
+            </button>
+
             <h1 className="text-base font-bold text-foreground hidden sm:block">
               {activeProfile ? activeProfile.name : "Patient Portal"}
             </h1>
@@ -356,107 +407,135 @@ export default function UserLayout() {
 
           <div className="flex items-center gap-3">
             {/* Family Profile Switcher using Custom Accessible Select */}
-            <div className="flex items-center gap-2">
-              {data?.patientProfiles && data.patientProfiles.length > 0 ? (
-                <>
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider hidden md:inline">
-                    Active Patient:
-                  </span>
-                  <div className="w-48">
-                    <Select
-                      value={String(activeProfileId || "")}
-                      onChange={(val) => switchActiveProfile(Number(val))}
-                      placeholder="Select Profile"
-                      options={data.patientProfiles.map((p) => ({
-                        value: String(p.patientId),
-                        label: p.name,
-                        description: p.bloodType || "O+",
-                      }))}
-                    />
-                  </div>
-                </>
-              ) : (
-                <div className="text-xs font-bold text-muted-foreground">No profiles linked</div>
-              )}
-
-              <button
-                title="Add Family Member"
-                onClick={() => setManageOpen(true)}
-                className="grid h-11 w-11 place-items-center rounded-2xl bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-900/40 hover:bg-orange-100 btn-target cursor-pointer"
-                aria-label="Add Family Member"
-              >
-                <PlusIcon className="w-4 h-4" />
-              </button>
-            </div>
+            {data?.patientProfiles && data.patientProfiles.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider hidden md:inline">
+                  Active Patient:
+                </span>
+                <div className="w-48">
+                  <Select
+                    value={String(activeProfileId || "")}
+                    onChange={(val) => switchActiveProfile(Number(val))}
+                    placeholder="Select Profile"
+                    options={data.patientProfiles.map((p) => ({
+                      value: String(p.patientId),
+                      label: p.name,
+                      description: p.bloodType || "O+",
+                    }))}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Profile Avatar & Header Dropdown */}
-            {activeProfile && (
-              <DropdownMenu>
-                <DropdownMenuTrigger>
-                  <div className="flex items-center gap-2.5 border-l border-border/80 pl-3 cursor-pointer p-1 rounded-2xl hover:bg-secondary/60 transition">
-                    <div className="grid h-9 w-9 place-items-center rounded-2xl bg-orange-500/10 text-xs font-bold text-orange-600 dark:text-orange-400 border border-orange-500/20 shadow-2xs">
-                      {getInitials(activeProfile.name)}
-                    </div>
-                    <div className="hidden sm:block text-left">
-                      <div className="text-xs font-bold text-foreground truncate max-w-28">
-                        {activeProfile.name}
-                      </div>
-                      <div className="text-[10px] font-semibold text-muted-foreground">
-                        Patient Profile
-                      </div>
-                    </div>
-                    <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground hidden sm:block" />
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <div className="flex items-center gap-2.5 border-l border-border/80 pl-3 cursor-pointer p-1 rounded-2xl hover:bg-secondary/60 transition">
+                  <div className="grid h-9 w-9 place-items-center rounded-2xl bg-orange-500/10 text-xs font-bold text-orange-600 dark:text-orange-400 border border-orange-500/20 shadow-2xs">
+                    {getInitials(activeProfile?.name || user?.name || "PT")}
                   </div>
-                </DropdownMenuTrigger>
-
-                <DropdownMenuContent align="right" className="w-56">
-                  <DropdownMenuLabel>
-                    <div className="font-bold text-foreground">{activeProfile.name}</div>
-                    <div className="text-[10px] text-muted-foreground font-normal">
-                      {user?.email || "patient@scms.local"} &bull; {activeProfile.bloodType || "O+"}
+                  <div className="hidden sm:block text-left">
+                    <div className="text-xs font-bold text-foreground truncate max-w-28">
+                      {activeProfile?.name || user?.name || "Patient"}
                     </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    icon={<CalendarIcon className="w-4 h-4 text-orange-500" />}
-                    onClick={() => navigate("/user/appointments")}
-                  >
-                    My Appointments
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    icon={<FileTextIcon className="w-4 h-4 text-orange-500" />}
-                    onClick={() => navigate("/user/prescriptions")}
-                  >
-                    Prescriptions Wallet
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    icon={<CardStackIcon className="w-4 h-4 text-orange-500" />}
-                    onClick={() => navigate("/user/billing")}
-                  >
-                    Invoices & Billing
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    icon={<PersonIcon className="w-4 h-4 text-orange-500" />}
-                    onClick={() => navigate("/user/family")}
-                  >
-                    Manage Family Profiles
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    destructive
-                    icon={<ExitIcon className="w-4 h-4" />}
-                    onClick={handleLogout}
-                  >
-                    {t.logout || "Logout"}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+                    <div className="text-[10px] font-semibold text-muted-foreground">
+                      Patient Profile
+                    </div>
+                  </div>
+                  <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground hidden sm:block" />
+                </div>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="right" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="font-bold text-foreground">{activeProfile?.name || user?.name || "Patient"}</div>
+                  <div className="text-[10px] text-muted-foreground font-normal">
+                    {user?.email || "patient@scms.local"} {activeProfile?.bloodType ? `• ${activeProfile.bloodType}` : ""}
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  destructive
+                  icon={<ExitIcon className="w-4 h-4" />}
+                  onClick={handleLogout}
+                >
+                  {t.logout || "Sign Out"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
-        {/* Content Body */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-background">
+        {/* Offline Status Alert */}
+        {isOffline && (
+          <aside
+            role="status"
+            aria-live="polite"
+            className="flex items-center justify-between gap-3 bg-amber-600 dark:bg-amber-700 px-4 py-2 text-xs font-bold text-white shadow-xs"
+          >
+            <div className="flex items-center gap-2">
+              <InfoCircledIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>
+                {language === "mm"
+                  ? "အင်တာနက်လိုင်း ပြတ်တောက်နေပါသည်။ သိုလှောင်ထားသော ဆေးမှတ်တမ်းများကို ပြသနေပါသည်။"
+                  : "Offline Mode: Network unavailable. Showing cached medical records and prescriptions."}
+              </span>
+            </div>
+            <span className="rounded-md bg-black/20 px-2 py-0.5 font-mono text-[10px] uppercase">
+              Offline
+            </span>
+          </aside>
+        )}
+
+        {/* PWA Install Banner */}
+        {showInstallBanner && (
+          <aside
+            role="region"
+            aria-label="PWA App Installation"
+            className="flex items-center justify-between gap-3 border-b border-orange-400/40 bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 px-4 py-2.5 text-xs text-white shadow-md"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="grid h-8 w-8 place-items-center rounded-xl bg-white/20 backdrop-blur-xs">
+                <DownloadIcon className="h-4 w-4 text-white" aria-hidden="true" />
+              </div>
+              <div>
+                <span className="block font-bold">
+                  {language === "mm" ? "SCMS ဆေးခန်း App ကို ဖုန်းတွင် ထည့်သွင်းပါ" : "Install SCMS Patient App"}
+                </span>
+                <span className="block text-[10px] font-medium text-white/90">
+                  {language === "mm"
+                    ? "Home screen မှ လျင်မြန်စွာ အသုံးပြုနိုင်သည်"
+                    : "Add to home screen for faster 1-tap booking & offline wallet"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleInstallClick}
+                className="rounded-xl bg-white px-3.5 py-1.5 font-bold text-xs text-orange-700 shadow-xs hover:bg-orange-50 active:scale-95 btn-target"
+              >
+                {language === "mm" ? "ထည့်မည်" : "Install"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowInstallBanner(false)}
+                className="rounded-lg p-1.5 text-white/80 hover:bg-white/10 hover:text-white"
+                aria-label={t.close || "Dismiss install banner"}
+              >
+                <Cross2Icon className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          </aside>
+        )}
+
+        {/* Content Body with Mobile Bottom Nav Clearance */}
+        <main
+          id="user-main-content"
+          tabIndex={-1}
+          className="relative z-0 flex-1 overflow-y-auto p-4 md:p-8 bg-background pb-28 lg:pb-8 focus:outline-none"
+        >
           <div className="mx-auto max-w-6xl">
             {error && (
               <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 dark:bg-rose-950/40 p-4 text-xs font-bold text-rose-700 dark:text-rose-300">
@@ -492,6 +571,15 @@ export default function UserLayout() {
             )}
           </div>
         </main>
+
+        {/* Mobile-First Thumb-Zone Bottom Navigation Bar */}
+        <MobileBottomNav
+          language={language}
+          counts={{
+            appointments: filteredTelemetry.appointments.length,
+            unpaid: filteredTelemetry.outstanding.length,
+          }}
+        />
       </div>
 
       {/* Add Patient Profile Modal */}

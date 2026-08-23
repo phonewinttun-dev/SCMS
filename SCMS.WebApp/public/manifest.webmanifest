@@ -1,0 +1,56 @@
+{
+  "name": "SCMS Smart Clinic Patient Portal",
+  "short_name": "SCMS Clinic",
+  "description": "Smart Clinic Management System - Patient Portal, Digital Prescriptions, Appointment Booking & Live Queue Tracking",
+  "start_url": "/user/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FAF9F6",
+  "theme_color": "#18181B",
+  "categories": ["health", "medical", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Book Appointment",
+      "short_name": "Book",
+      "description": "Book a clinic consultation slot",
+      "url": "/user/appointments",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Prescriptions & Meds",
+      "short_name": "Prescriptions",
+      "description": "View digital prescriptions and medicines",
+      "url": "/user/prescriptions",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Family Health Profiles",
+      "short_name": "Family",
+      "description": "Manage linked family health records",
+      "url": "/user/family",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Billing & Pay",
+      "short_name": "Billing",
+      "description": "Mobile wallet payments and invoices",
+      "url": "/user/billing",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    }
+  ]
+}
