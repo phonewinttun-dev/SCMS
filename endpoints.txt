@@ -114,3 +114,6 @@
 ## SignalR Hubs (Real-time WebSocket)
 - `/hubs/queue`                                     # QueueHub — appointment queue updates
 - `/hubs/notifications`                             # NotificationsHub — live notification delivery
+
+## Dev & Health Endpoints
+- `GET    /health`                                  # ASP.NET Core health check

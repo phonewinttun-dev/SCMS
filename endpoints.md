@@ -1,6 +1,6 @@
 # SCMS Web API Endpoints
 
-**Base URL**: `http://localhost:5140`  
+**Base URL**: `http://localhost:5140`
 **Interactive Scalar API Reference**: `http://localhost:5140/scalar`
 
 ---
@@ -192,3 +192,12 @@
 | :--- | :--- | :--- | :--- |
 | `WSS / WS` | `/hubs/queue` | Authenticated (`user`, `owner`, `admin`, `doctor`) | Real-time queue event notifications (e.g., patient called, queue advanced) |
 | `WSS / WS` | `/hubs/notifications` | Authenticated (`user`, `owner`, `admin`, `doctor`) | Real-time user alert and push notification broadcasting |
+
+---
+
+## 15. Dev & Health Endpoints
+
+| Method | Endpoint | Allowed Roles | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health` | Anonymous (Public) | ASP.NET Core health check probe for Render/Docker zero-downtime health monitoring |
+

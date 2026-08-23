@@ -88,13 +88,53 @@ INSERT INTO tbl_patient (patient_id, user_id, name, mobile_no, email, date_of_bi
   "FamilyHistory": "No significant family history",
   "VaccinationHistory": "COVID-19 primary series; hepatitis B dose 1"
 }$$, CURRENT_TIMESTAMP - INTERVAL '12 days', CURRENT_TIMESTAMP, false),
-(10007, 10010, 'SCMS Patient', '09979990003', 'user@scms.demo', DATE '1990-01-01', 'male', 'O+', $${
-  "ActualAddress": "No. 12, Main Road, Kyauktada Township, Yangon",
-  "Allergies": "No known drug allergies",
-  "ChronicConditions": "None",
+(10007, 10010, 'SCMS Patient', '09979990003', 'user@scms.demo', DATE '1990-05-14', 'male', 'O+', $${
+  "ActualAddress": "No. 45, Bogyoke Road, Bahan, Yangon",
+  "Allergies": "Penicillin",
+  "ChronicConditions": "Mild Asthma",
   "PastSurgeries": "None",
   "FamilyHistory": "None",
   "VaccinationHistory": "COVID-19 completed"
+}$$, CURRENT_TIMESTAMP - INTERVAL '30 days', CURRENT_TIMESTAMP, false),
+(10008, 10010, 'Daw Khin Myo', '09979990012', 'khinmyo@family.demo', DATE '1965-08-20', 'female', 'B+', $${
+  "ActualAddress": "No. 45, Bogyoke Road, Bahan, Yangon",
+  "Allergies": "Sulfa drugs",
+  "ChronicConditions": "Hypertension",
+  "PastSurgeries": "None",
+  "FamilyHistory": "Cardiovascular history",
+  "VaccinationHistory": "COVID-19 booster; Influenza vaccine"
+}$$, CURRENT_TIMESTAMP - INTERVAL '30 days', CURRENT_TIMESTAMP, false),
+(10009, 10010, 'Ma Hnin Thandar', '09979990013', 'hninthandar@family.demo', DATE '1998-11-12', 'female', 'A+', $${
+  "ActualAddress": "No. 45, Bogyoke Road, Bahan, Yangon",
+  "Allergies": "None",
+  "ChronicConditions": "None",
+  "PastSurgeries": "None",
+  "FamilyHistory": "None",
+  "VaccinationHistory": "COVID-19 completed; Hepatitis B series"
+}$$, CURRENT_TIMESTAMP - INTERVAL '30 days', CURRENT_TIMESTAMP, false),
+(10010, 10010, 'U Kyaw Swar', '09979990014', 'kyawswar@family.demo', DATE '1978-04-18', 'male', 'O+', $${
+  "ActualAddress": "No. 45, Bogyoke Road, Bahan, Yangon",
+  "Allergies": "Aspirin",
+  "ChronicConditions": "Type 2 Diabetes",
+  "PastSurgeries": "None",
+  "FamilyHistory": "None",
+  "VaccinationHistory": "COVID-19 completed"
+}$$, CURRENT_TIMESTAMP - INTERVAL '30 days', CURRENT_TIMESTAMP, false),
+(10011, 10010, 'Daw Aye Aye Thin', '09979990015', 'ayeayethin@family.demo', DATE '1974-09-25', 'female', 'B+', $${
+  "ActualAddress": "No. 45, Bogyoke Road, Bahan, Yangon",
+  "Allergies": "None",
+  "ChronicConditions": "Hyperlipidemia",
+  "PastSurgeries": "None",
+  "FamilyHistory": "None",
+  "VaccinationHistory": "COVID-19 completed"
+}$$, CURRENT_TIMESTAMP - INTERVAL '30 days', CURRENT_TIMESTAMP, false),
+(10012, 10010, 'Mg Min Khant', '09979990016', 'minkhant@family.demo', DATE '2014-06-10', 'male', 'A+', $${
+  "ActualAddress": "No. 45, Bogyoke Road, Bahan, Yangon",
+  "Allergies": "Peanuts",
+  "ChronicConditions": "Mild Asthma",
+  "PastSurgeries": "None",
+  "FamilyHistory": "None",
+  "VaccinationHistory": "Childhood immunizations up to date"
 }$$, CURRENT_TIMESTAMP - INTERVAL '30 days', CURRENT_TIMESTAMP, false)
 ON CONFLICT DO NOTHING;
 
@@ -158,7 +198,26 @@ INSERT INTO tbl_appointment (id, appointment_code, patient_id, datetime, status,
 (10006, 'APT-DEMO-CAN-006', 10006, CURRENT_DATE + TIME '11:30', 'cancelled', 'Travel clearance visit cancelled by patient.', CURRENT_TIMESTAMP - INTERVAL '1 day', CURRENT_TIMESTAMP - INTERVAL '6 hours'),
 (10007, 'APT-DEMO-FUP-007', 10002, CURRENT_DATE + 1 + TIME '10:00', 'confirmed', 'Follow-up after medication adjustment.', CURRENT_TIMESTAMP - INTERVAL '5 days', CURRENT_TIMESTAMP - INTERVAL '1 day'),
 (10008, 'APT-DEMO-LAB-008', 10001, CURRENT_DATE + 1 + TIME '11:00', 'pending', 'Review dengue NS1 and CBC lab results.', CURRENT_TIMESTAMP - INTERVAL '3 hours', CURRENT_TIMESTAMP - INTERVAL '3 hours'),
-(10009, 'APT-DEMO-DM-009', 10002, CURRENT_DATE - 45 + TIME '08:45', 'completed', 'Initial diabetes medication review after fasting glucose elevation.', CURRENT_TIMESTAMP - INTERVAL '46 days', CURRENT_TIMESTAMP - INTERVAL '45 days')
+(10009, 'APT-DEMO-DM-009', 10002, CURRENT_DATE - 45 + TIME '08:45', 'completed', 'Initial diabetes medication review after fasting glucose elevation.', CURRENT_TIMESTAMP - INTERVAL '46 days', CURRENT_TIMESTAMP - INTERVAL '45 days'),
+(10010, 'APT-20260802-001', 10008, TIMESTAMP '2026-08-02 09:00:00', 'completed', 'Routine Health Checkup & Blood Pressure Monitoring', TIMESTAMP '2026-07-31 09:00:00', TIMESTAMP '2026-08-02 09:00:00'),
+(10011, 'APT-20260805-002', 10007, TIMESTAMP '2026-08-05 10:30:00', 'completed', 'General Medical Consultation & Seasonal Allergy', TIMESTAMP '2026-08-03 10:30:00', TIMESTAMP '2026-08-05 10:30:00'),
+(10012, 'APT-20260808-003', 10008, TIMESTAMP '2026-08-08 14:00:00', 'completed', 'Hypertension Medication Adjustment', TIMESTAMP '2026-08-06 14:00:00', TIMESTAMP '2026-08-08 14:00:00'),
+(10013, 'APT-20260812-004', 10009, TIMESTAMP '2026-08-12 11:00:00', 'completed', 'Annual Health Screening & Blood Panel', TIMESTAMP '2026-08-10 11:00:00', TIMESTAMP '2026-08-12 11:00:00'),
+(10014, 'APT-20260815-005', 10007, TIMESTAMP '2026-08-15 09:30:00', 'completed', 'Asthma Inhaler Refill & Spirometry Review', TIMESTAMP '2026-08-13 09:30:00', TIMESTAMP '2026-08-15 09:30:00'),
+(10015, 'APT-20260819-006', 10009, TIMESTAMP '2026-08-19 15:30:00', 'completed', 'Seasonal Flu, Sore Throat & Viral Fever', TIMESTAMP '2026-08-17 15:30:00', TIMESTAMP '2026-08-19 15:30:00'),
+(10016, 'APT-20260824-001', 10008, TIMESTAMP '2026-08-24 08:30:00', 'completed', 'Hypertension Routine Follow-up & BP Monitoring', TIMESTAMP '2026-08-22 08:30:00', TIMESTAMP '2026-08-24 08:30:00'),
+(10017, 'APT-20260824-002', 10007, TIMESTAMP '2026-08-24 09:15:00', 'completed', 'General Medical Consultation & Seasonal Fever', TIMESTAMP '2026-08-22 09:15:00', TIMESTAMP '2026-08-24 09:15:00'),
+(10018, 'APT-20260824-003', 10010, TIMESTAMP '2026-08-24 10:00:00', 'completed', 'Type 2 Diabetes Review & Fasting Blood Glucose', TIMESTAMP '2026-08-22 10:00:00', TIMESTAMP '2026-08-24 10:00:00'),
+(10019, 'APT-20260824-004', 10009, TIMESTAMP '2026-08-24 11:00:00', 'completed', 'Dermatology & Allergic Rhinitis Consultation', TIMESTAMP '2026-08-22 11:00:00', TIMESTAMP '2026-08-24 11:00:00'),
+(10020, 'APT-20260824-005', 10011, TIMESTAMP '2026-08-24 11:45:00', 'completed', 'Hyperlipidemia & Cardiovascular Screening', TIMESTAMP '2026-08-22 11:45:00', TIMESTAMP '2026-08-24 11:45:00'),
+(10021, 'APT-20260824-006', 10012, TIMESTAMP '2026-08-24 13:30:00', 'completed', 'Pediatric Asthma Review & Inhaler Assessment', TIMESTAMP '2026-08-22 13:30:00', TIMESTAMP '2026-08-24 13:30:00'),
+(10022, 'APT-20260824-007', 10008, TIMESTAMP '2026-08-24 14:30:00', 'confirmed', 'Routine Blood Pressure Follow-up & ECG Review', TIMESTAMP '2026-08-22 14:30:00', TIMESTAMP '2026-08-23 14:30:00'),
+(10023, 'APT-20260824-008', 10007, TIMESTAMP '2026-08-24 15:15:00', 'confirmed', 'General Consultation & Prescription Renewal', TIMESTAMP '2026-08-23 15:15:00', TIMESTAMP '2026-08-23 15:15:00'),
+(10024, 'APT-20260824-009', 10010, TIMESTAMP '2026-08-24 16:00:00', 'pending', 'Dietary Advice & Laboratory Panel Review', TIMESTAMP '2026-08-23 16:00:00', TIMESTAMP '2026-08-23 16:00:00'),
+(10025, 'APT-20260824-010', 10009, TIMESTAMP '2026-08-24 16:45:00', 'cancelled', 'Patient requested cancellation due to work schedule', TIMESTAMP '2026-08-23 16:45:00', TIMESTAMP '2026-08-24 08:00:00'),
+(10026, 'APT-20260825-008', 10007, TIMESTAMP '2026-08-25 10:30:00', 'confirmed', 'General Consultation & Prescription Renewal', TIMESTAMP '2026-08-23 10:30:00', TIMESTAMP '2026-08-23 10:30:00'),
+(10027, 'APT-20260827-009', 10009, TIMESTAMP '2026-08-27 14:00:00', 'pending', 'Dermatology & Skin Rash Review', TIMESTAMP '2026-08-23 14:00:00', TIMESTAMP '2026-08-23 14:00:00'),
+(10028, 'APT-20260829-010', 10007, TIMESTAMP '2026-08-29 11:00:00', 'pending', 'General Wellness & Diagnostic Lab Review', TIMESTAMP '2026-08-23 11:00:00', TIMESTAMP '2026-08-23 11:00:00')
 ON CONFLICT DO NOTHING;
 
 -- Case 6: Completed consultations with vitals, diagnosis notes, and lab requests
@@ -219,7 +278,23 @@ INSERT INTO tbl_payment (id, appointment_id, prescription_id, amount, tax, charg
 (10001, 10001, 10001, 17500.00, 875.00, 500.00, 'kbzpay', 'paid', NULL, CURRENT_TIMESTAMP - INTERVAL '1 day', CURRENT_TIMESTAMP - INTERVAL '1 day'),
 (10002, 10002, 10002, 22500.00, 1125.00, 0.00, 'cash', 'paid', NULL, CURRENT_TIMESTAMP - INTERVAL '14 days', CURRENT_TIMESTAMP - INTERVAL '14 days'),
 (10003, 10003, NULL, 10000.00, 500.00, 0.00, 'wavepay', 'pending', '/uploads/payment-proofs/apt-demo-ast-003.png', NULL, CURRENT_TIMESTAMP - INTERVAL '30 minutes'),
-(10004, 10009, 10003, 18500.00, 925.00, 0.00, 'card', 'paid', NULL, CURRENT_TIMESTAMP - INTERVAL '45 days', CURRENT_TIMESTAMP - INTERVAL '45 days')
+(10004, 10009, 10003, 18500.00, 925.00, 0.00, 'card', 'paid', NULL, CURRENT_TIMESTAMP - INTERVAL '45 days', CURRENT_TIMESTAMP - INTERVAL '45 days'),
+(10010, 10010, NULL, 25000.00, 1250.00, 0.00, 'kpay', 'paid', NULL, TIMESTAMP '2026-08-02 09:45:00', TIMESTAMP '2026-08-02 09:45:00'),
+(10011, 10011, NULL, 30000.00, 1500.00, 0.00, 'wavepay', 'paid', NULL, TIMESTAMP '2026-08-05 11:15:00', TIMESTAMP '2026-08-05 11:15:00'),
+(10012, 10013, NULL, 18000.00, 900.00, 0.00, 'cash', 'paid', NULL, TIMESTAMP '2026-08-12 11:45:00', TIMESTAMP '2026-08-12 11:45:00'),
+(10013, 10016, NULL, 35000.00, 1750.00, 0.00, 'kpay', 'paid', NULL, TIMESTAMP '2026-08-24 09:00:00', TIMESTAMP '2026-08-24 09:00:00'),
+(10014, 10017, NULL, 25000.00, 1250.00, 0.00, 'wavepay', 'paid', NULL, TIMESTAMP '2026-08-24 09:45:00', TIMESTAMP '2026-08-24 09:45:00'),
+(10015, 10018, NULL, 45000.00, 2250.00, 0.00, 'cash', 'paid', NULL, TIMESTAMP '2026-08-24 10:30:00', TIMESTAMP '2026-08-24 10:30:00'),
+(10016, 10019, NULL, 20000.00, 1000.00, 0.00, 'cbpay', 'paid', NULL, TIMESTAMP '2026-08-24 11:30:00', TIMESTAMP '2026-08-24 11:30:00'),
+(10017, 10020, NULL, 55000.00, 2750.00, 0.00, 'kpay', 'paid', NULL, TIMESTAMP '2026-08-24 12:15:00', TIMESTAMP '2026-08-24 12:15:00'),
+(10018, 10021, NULL, 30000.00, 1500.00, 0.00, 'cash', 'paid', NULL, TIMESTAMP '2026-08-24 14:00:00', TIMESTAMP '2026-08-24 14:00:00'),
+(10019, 10022, NULL, 22000.00, 1100.00, 0.00, 'kpay', 'pending', NULL, NULL, TIMESTAMP '2026-08-24 14:30:00'),
+(10020, 10023, NULL, 28000.00, 1400.00, 0.00, 'wavepay', 'pending', NULL, NULL, TIMESTAMP '2026-08-24 15:15:00'),
+(10021, 10024, NULL, 32000.00, 1600.00, 0.00, 'cbpay', 'pending', NULL, NULL, TIMESTAMP '2026-08-24 16:00:00'),
+(10022, 10026, NULL, 35000.00, 1750.00, 0.00, 'cbpay', 'pending', NULL, NULL, TIMESTAMP '2026-08-23 10:30:00'),
+(10027, 10012, NULL, 20000.00, 1000.00, 0.00, 'kpay', 'paid', NULL, TIMESTAMP '2026-08-08 14:30:00', TIMESTAMP '2026-08-08 14:30:00'),
+(10028, 10014, NULL, 35000.00, 1750.00, 0.00, 'wavepay', 'paid', NULL, TIMESTAMP '2026-08-15 10:15:00', TIMESTAMP '2026-08-15 10:15:00'),
+(10029, 10015, NULL, 25000.00, 1250.00, 0.00, 'cash', 'paid', NULL, TIMESTAMP '2026-08-19 16:15:00', TIMESTAMP '2026-08-19 16:15:00')
 ON CONFLICT DO NOTHING;
 
 -- Case 8: Full standard system permissions (50 system permissions)
