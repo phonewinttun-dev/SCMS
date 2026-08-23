@@ -114,7 +114,7 @@ namespace SCMS.Database.Seeding
                 return $"{title} {string.Join(" ", parts)}";
             }
 
-            // 1. Ensure Staff Accounts Exist
+            // 1. Ensure Staff and Demo Accounts Exist
             var existingAdmin = await _context.TblUsers.FirstOrDefaultAsync(u => u.Email == "admin@scms.demo");
             if (existingAdmin == null)
             {
@@ -148,6 +148,48 @@ namespace SCMS.Database.Seeding
                 };
                 docUser.TblUserRoles.Add(new TblUserRole { Role = "doctor" });
                 _context.TblUsers.Add(docUser);
+            }
+
+            var existingPatient = await _context.TblUsers.FirstOrDefaultAsync(u => u.Email == "user@scms.demo");
+            if (existingPatient == null)
+            {
+                var patientUser = new TblUser
+                {
+                    Name = "SCMS Patient",
+                    Email = "user@scms.demo",
+                    MobileNo = "09979990003",
+                    PasswordHash = "demo-password-hash",
+                    CreatedAt = DateTime.UtcNow.AddYears(-1),
+                    UpdatedAt = DateTime.UtcNow,
+                    DeleteFlag = false
+                };
+                patientUser.TblUserRoles.Add(new TblUserRole { Role = "user" });
+                _context.TblUsers.Add(patientUser);
+                await _context.SaveChangesAsync();
+
+                var patientProfile = new TblPatient
+                {
+                    UserId = patientUser.UserId,
+                    Name = "SCMS Patient",
+                    MobileNo = "09979990003",
+                    Email = "user@scms.demo",
+                    DateOfBirth = new DateOnly(1990, 5, 14),
+                    Gender = "male",
+                    BloodType = "O+",
+                    Allergies = "Penicillin",
+                    ChronicConditions = "Mild Asthma",
+                    Address = """
+                    {
+                      "ActualAddress": "No. 45, Bogyoke Road, Bahan, Yangon",
+                      "Allergies": "Penicillin",
+                      "ChronicConditions": "Mild Asthma"
+                    }
+                    """,
+                    CreatedAt = DateTime.UtcNow.AddYears(-1),
+                    UpdatedAt = DateTime.UtcNow,
+                    DeleteFlag = false
+                };
+                _context.TblPatients.Add(patientProfile);
             }
             await _context.SaveChangesAsync();
 
@@ -484,6 +526,10 @@ namespace SCMS.Database.Seeding
                 await _context.TblFollowUps.AddRangeAsync(followUps);
                 await _context.SaveChangesAsync();
             }
+
+            // 7. Ensure System Permissions & Role Permissions are Seeded
+            await DataSeeder.EnsureSystemPermissionsSeededAsync(_context);
+            await DataSeeder.EnsureDefaultRolePermissionsAsync(_context);
 
             Console.WriteLine("--------------------------------------------------");
             Console.WriteLine("Universal Mass Database Seeder completed successfully!");
