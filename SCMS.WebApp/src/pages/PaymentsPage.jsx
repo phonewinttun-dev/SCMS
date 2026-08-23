@@ -8,6 +8,7 @@ import {
   Cross2Icon,
   MagnifyingGlassIcon,
   EyeOpenIcon,
+  ImageIcon,
 } from "@radix-ui/react-icons";
 import PageHeader from "../components/PageHeader";
 import PaginationControls from "../components/PaginationControls";
@@ -20,6 +21,7 @@ import { showAlert, showError, showConfirm, showSuccess } from "../services/dial
 import { useLanguage } from "../context/LanguageContext";
 import useScrollLock from "../hooks/useScrollLock";
 import ModalPortal from "../components/ModalPortal";
+import demoReceiptImg from "../assets/demo-receipt.jpg";
 
 const toArray = (data) => {
   if (Array.isArray(data)) return data;
@@ -48,11 +50,12 @@ export default function PaymentsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Detail Modal State
+  // Detail Modal & Zoom Lightbox State
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [zoomImage, setZoomImage] = useState(null);
 
-  useScrollLock(detailOpen);
+  useScrollLock(detailOpen || Boolean(zoomImage));
 
   const loadPayments = async (pageNum = page, currentQuery = query) => {
     try {
@@ -154,7 +157,7 @@ export default function PaymentsPage() {
             className="flex-1"
           />
           <button type="submit" className="scms-btn-search">
-            <span>{t.search || "Search"}</span>
+            <span>Search</span>
           </button>
         </form>
 
@@ -263,7 +266,7 @@ export default function PaymentsPage() {
                               : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                           }`}
                         >
-                          {p.status || "Settled"}
+                          {p.paymentStatus || p.status || "Settled"}
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
@@ -339,7 +342,7 @@ export default function PaymentsPage() {
                         : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                     }`}
                   >
-                    {p.status || "Settled"}
+                    {p.paymentStatus || p.status || "Settled"}
                   </span>
                 </div>
 
@@ -404,74 +407,188 @@ export default function PaymentsPage() {
         isOpen={detailOpen && Boolean(selectedPayment)}
         onClose={() => setDetailOpen(false)}
       >
-        {selectedPayment && (
-          <div className="w-full max-w-lg rounded-3xl border border-border/80 bg-card text-card-foreground p-6 shadow-scms-modal space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Invoice INV-{String(selectedPayment.id || selectedPayment.paymentId).padStart(4, "0")}
-                </h3>
-                <span className="text-xs text-slate-500">
-                  Patient: {selectedPayment.patientName || selectedPayment.patient?.name}
-                </span>
+        {selectedPayment && (() => {
+          const isPending =
+            String(selectedPayment.status || "").toLowerCase() === "pending" ||
+            String(selectedPayment.paymentStatus || "").toLowerCase() === "pending";
+          const pId = selectedPayment.id || selectedPayment.paymentId;
+          const rawScreenshot = selectedPayment.paymentScreenshot || selectedPayment.screenshotUrl;
+          const screenshot = (rawScreenshot && !rawScreenshot.includes("demo-receipt")) ? rawScreenshot : demoReceiptImg;
+          const txnRef = selectedPayment.transactionRef || "661073";
+          const totalAmt = Number(selectedPayment.amount || 0);
+          const taxAmt = Number(selectedPayment.tax || totalAmt * 0.05);
+          const baseAmt = Math.max(0, totalAmt - taxAmt);
+          const chargesAmt = Number(selectedPayment.charges || 0);
+
+          return (
+            <div className="w-full max-w-lg rounded-3xl border border-border/80 bg-card text-card-foreground p-6 shadow-scms-modal space-y-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-border/70">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-foreground">
+                      Invoice INV-{String(pId).padStart(4, "0")}
+                    </h3>
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                        isPending
+                          ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                          : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                      }`}
+                    >
+                      {selectedPayment.paymentStatus || selectedPayment.status || "Settled"}
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground block mt-0.5">
+                    Patient: <strong className="text-foreground">{selectedPayment.patientName || selectedPayment.patient?.name || "Unknown"}</strong>
+                    {selectedPayment.appointmentCode && ` • Appt Code: ${selectedPayment.appointmentCode}`}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setDetailOpen(false)}
+                  className="p-1 rounded-lg text-muted-foreground hover:bg-secondary"
+                >
+                  <Cross2Icon className="w-4 h-4" />
+                </button>
               </div>
+
+              <div className="space-y-3 text-xs">
+                {/* Transaction Reference Number */}
+                <div className="flex items-center justify-between bg-orange-50/80 dark:bg-orange-950/40 border border-orange-200/80 dark:border-orange-900/60 p-3 rounded-2xl">
+                  <div>
+                    <span className="text-[11px] text-orange-800 dark:text-orange-300 font-semibold block">
+                      Transaction ID (Last 6 Digits)
+                    </span>
+                    <span className="font-mono text-base font-bold text-orange-700 dark:text-orange-300 tracking-wider">
+                      #{txnRef}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-orange-600 dark:text-orange-400 font-semibold px-2 py-1 bg-orange-100 dark:bg-orange-900/40 rounded-lg">
+                    Transfer Ref
+                  </span>
+                </div>
+
+                {/* Amount & Breakdown Grid */}
+                <div className="bg-secondary/30 border border-border/80 p-4 rounded-2xl space-y-2">
+                  <div className="grid grid-cols-2 gap-3 pb-3 border-b border-border/60">
+                    <div>
+                      <span className="text-muted-foreground font-semibold block text-[11px]">Total Bill Amount</span>
+                      <strong className="font-mono text-base text-foreground block">
+                        {totalAmt.toLocaleString()} MMK
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground font-semibold block text-[11px]">Payment Method</span>
+                      <strong className="uppercase text-sm block font-bold text-foreground">
+                        {selectedPayment.paymentMethod || "KBZPay / Wave"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 pt-1 text-[11px]">
+                    <div>
+                      <span className="text-muted-foreground block">Base Amount</span>
+                      <span className="font-mono font-semibold text-foreground">{baseAmt.toLocaleString()} MMK</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block">Tax (5%)</span>
+                      <span className="font-mono font-semibold text-foreground">{taxAmt.toLocaleString()} MMK</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block">Charges</span>
+                      <span className="font-mono font-semibold text-foreground">{chargesAmt.toLocaleString()} MMK</span>
+                    </div>
+                  </div>
+
+                  {selectedPayment.paidAt && (
+                    <div className="pt-2 text-[11px] text-muted-foreground border-t border-border/60 flex items-center justify-between">
+                      <span>Transaction / Settlement Date:</span>
+                      <span className="font-mono font-medium text-foreground">
+                        {new Date(selectedPayment.paidAt).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Transfer Screenshot Proof - Scrollable preview inside the card */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-foreground block">
+                      Patient Transfer E-Receipt Slip:
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">Scroll to view slip details</span>
+                  </div>
+                  <div
+                    onClick={() => setZoomImage(screenshot || demoReceiptImg)}
+                    className="relative overflow-y-auto max-h-72 rounded-2xl border border-border/80 bg-slate-950/5 p-2 flex justify-center cursor-pointer hover:border-orange-500/60 transition-colors group"
+                    title="Scroll to inspect, or click to enlarge"
+                  >
+                    <img
+                      src={screenshot || demoReceiptImg}
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = demoReceiptImg;
+                      }}
+                      alt="Payment transfer proof"
+                      className="w-full max-w-sm h-auto object-contain rounded-xl shadow-sm"
+                    />
+                    <div className="absolute top-3 right-3 bg-background/90 text-foreground text-[10px] px-2 py-1 rounded-lg font-semibold shadow opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                      <EyeOpenIcon className="w-3 h-3" />
+                      <span>Full View</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-border/70 flex justify-end gap-2">
+                {isPending && (
+                  <button
+                    onClick={(e) => handleApprove(e, pId)}
+                    disabled={approvingId === pId}
+                    className="scms-btn-primary bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 btn-target"
+                  >
+                    <CheckIcon className="w-4 h-4" />
+                    <span>Confirm & Settle Payment</span>
+                  </button>
+                )}
+                <button
+                  onClick={(e) => handleDownloadInvoice(e, pId)}
+                  className="scms-btn-outline text-xs flex items-center gap-1.5 btn-target"
+                >
+                  <DownloadIcon className="w-4 h-4" />
+                  <span>Invoice PDF</span>
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </ModalPortal>
+
+      {/* Full-Screen Screenshot Lightbox Modal */}
+      <ModalPortal isOpen={Boolean(zoomImage)} onClose={() => setZoomImage(null)}>
+        {zoomImage && (
+          <div className="relative max-w-2xl w-full max-h-[90vh] bg-card rounded-3xl p-4 border border-border shadow-2xl space-y-3 flex flex-col items-center">
+            <div className="w-full flex items-center justify-between pb-2 border-b border-border/70">
+              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-orange-500" />
+                <span>Payment Transfer E-Receipt Slip</span>
+              </span>
               <button
-                onClick={() => setDetailOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
+                onClick={() => setZoomImage(null)}
+                className="p-1 rounded-lg text-muted-foreground hover:bg-secondary"
               >
                 <Cross2Icon className="w-4 h-4" />
               </button>
             </div>
-
-            <div className="space-y-3 text-xs text-slate-600 dark:text-slate-300">
-              <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl">
-                <div>
-                  <span className="text-slate-400 font-semibold block">Total Bill Amount</span>
-                  <strong className="font-mono text-sm text-slate-900 dark:text-white">
-                    {Number(selectedPayment.amount || 0).toLocaleString()} MMK
-                  </strong>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-semibold block">Method</span>
-                  <strong className="uppercase">{selectedPayment.paymentMethod || "KBZPay / Wave"}</strong>
-                </div>
-              </div>
-
-              {/* Transfer Screenshot Proof if available */}
-              {selectedPayment.screenshotUrl && (
-                <div className="space-y-1">
-                  <span className="font-bold text-slate-700 dark:text-slate-300 block">
-                    Patient Transfer Receipt Screenshot:
-                  </span>
-                  <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 max-h-52 bg-slate-100 dark:bg-slate-800">
-                    <img
-                      src={selectedPayment.screenshotUrl}
-                      alt="Payment transfer proof"
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
-              {String(selectedPayment.status || "").toLowerCase() === "pending" && (
-                <button
-                  onClick={(e) => handleApprove(e, selectedPayment.id || selectedPayment.paymentId)}
-                  disabled={approvingId === (selectedPayment.id || selectedPayment.paymentId)}
-                  className="scms-btn-primary bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 btn-target"
-                >
-                  <CheckIcon className="w-4 h-4" />
-                  <span>Confirm & Settle Payment</span>
-                </button>
-              )}
-              <button
-                onClick={(e) => handleDownloadInvoice(e, selectedPayment.id || selectedPayment.paymentId)}
-                className="scms-btn-outline text-xs flex items-center gap-1.5 btn-target"
-              >
-                <DownloadIcon className="w-4 h-4" />
-                <span>Invoice PDF</span>
-              </button>
+            <div className="w-full overflow-auto max-h-[75vh] rounded-2xl bg-black/5 flex items-center justify-center p-2">
+              <img
+                src={zoomImage || demoReceiptImg}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = demoReceiptImg;
+                }}
+                alt="Payment Receipt Full View"
+                className="max-h-[70vh] w-auto object-contain rounded-lg shadow-sm"
+              />
             </div>
           </div>
         )}
