@@ -232,10 +232,11 @@ export default function UserLayout() {
       prescriptions: (data.prescriptionHistory || []).filter(
         (p) => p.patientId === activeProfileId
       ),
-      outstanding: (data.outstandingBalances || []).filter(
-        (b) =>
-          (data.upcomingAppointments || []).find((a) => a.id === b.appointmentId)?.patientId ===
-          activeProfileId
+      outstanding: (data.outstandingBalances || []).filter((b) =>
+        b.patientId
+          ? b.patientId === activeProfileId
+          : (data.upcomingAppointments || []).find((a) => a.id === b.appointmentId)?.patientId ===
+            activeProfileId
       ),
     };
   }, [data, activeProfileId]);

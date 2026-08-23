@@ -105,7 +105,10 @@ namespace SCMS.Domain.Features.Dashboards
             // 2. Payments Query for the target month
             var monthlyPayments = await _context.TblPayments
                 .AsNoTracking()
-                .Where(p => p.PaymentStatus == "paid" && p.PaidAt.HasValue && p.PaidAt.Value >= monthStart && p.PaidAt.Value < monthEnd)
+                .Include(p => p.Appointment)
+                .Where(p => (p.PaymentStatus.ToLower() == "paid")
+                    && ((p.PaidAt.HasValue && p.PaidAt.Value >= monthStart && p.PaidAt.Value < monthEnd)
+                        || (!p.PaidAt.HasValue && p.Appointment != null && p.Appointment.Datetime >= monthStart && p.Appointment.Datetime < monthEnd)))
                 .ToListAsync(cancellationToken);
 
             // Period payments
@@ -113,7 +116,10 @@ namespace SCMS.Domain.Features.Dashboards
                 ? monthlyPayments
                 : await _context.TblPayments
                     .AsNoTracking()
-                    .Where(p => p.PaymentStatus == "paid" && p.PaidAt.HasValue && p.PaidAt.Value >= periodStart && p.PaidAt.Value < periodEnd)
+                    .Include(p => p.Appointment)
+                    .Where(p => (p.PaymentStatus.ToLower() == "paid")
+                        && ((p.PaidAt.HasValue && p.PaidAt.Value >= periodStart && p.PaidAt.Value < periodEnd)
+                            || (!p.PaidAt.HasValue && p.Appointment != null && p.Appointment.Datetime >= periodStart && p.Appointment.Datetime < periodEnd)))
                     .ToListAsync(cancellationToken);
 
             // 3. Build Daily Metrics Breakdown for the target month
@@ -124,7 +130,10 @@ namespace SCMS.Domain.Features.Dashboards
                 var dayEnd = dayStart.AddDays(1);
 
                 var dayPayments = monthlyPayments
-                    .Where(p => p.PaidAt.HasValue && p.PaidAt.Value >= dayStart && p.PaidAt.Value < dayEnd)
+                    .Where(p => {
+                        var paidDate = p.PaidAt ?? p.Appointment?.Datetime;
+                        return paidDate.HasValue && paidDate.Value >= dayStart && paidDate.Value < dayEnd;
+                    })
                     .ToList();
                 var dayIncome = dayPayments.Sum(p => p.Amount);
 
@@ -174,7 +183,10 @@ namespace SCMS.Domain.Features.Dashboards
                 var weekEndExclusive = new DateTime(targetYear, targetMonth, endDay, 0, 0, 0, DateTimeKind.Utc).AddDays(1);
 
                 var weekPayments = monthlyPayments
-                    .Where(p => p.PaidAt.HasValue && p.PaidAt.Value >= weekStart && p.PaidAt.Value < weekEndExclusive)
+                    .Where(p => {
+                        var paidDate = p.PaidAt ?? p.Appointment?.Datetime;
+                        return paidDate.HasValue && paidDate.Value >= weekStart && paidDate.Value < weekEndExclusive;
+                    })
                     .ToList();
                 var weekIncome = weekPayments.Sum(p => p.Amount);
 
@@ -263,7 +275,7 @@ namespace SCMS.Domain.Features.Dashboards
             // All-time Total Revenue
             var totalRevenueDouble = await _context.TblPayments
                 .AsNoTracking()
-                .Where(p => p.PaymentStatus == "paid")
+                .Where(p => p.PaymentStatus.ToLower() == "paid")
                 .Select(p => (double)p.Amount)
                 .SumAsync(cancellationToken);
 
@@ -382,12 +394,18 @@ namespace SCMS.Domain.Features.Dashboards
 
         private async Task<decimal> GetDailyRevenueAsync(DateTime start, DateTime end, CancellationToken cancellationToken)
         {
-            var amounts = await _context.TblPayments
+            var payments = await _context.TblPayments
                 .AsNoTracking()
-                .Where(p => p.PaymentStatus == "paid" && p.PaidAt.HasValue && p.PaidAt.Value >= start && p.PaidAt.Value < end)
-                .Select(p => p.Amount)
+                .Include(p => p.Appointment)
+                .Where(p => p.PaymentStatus.ToLower() == "paid")
                 .ToListAsync(cancellationToken);
-            return amounts.Sum();
+
+            return payments
+                .Where(p => {
+                    var paidDate = p.PaidAt ?? p.Appointment?.Datetime;
+                    return paidDate.HasValue && paidDate.Value >= start && paidDate.Value < end;
+                })
+                .Sum(p => p.Amount);
         }
 
         // --- Private Helper Methods for Patient Dashboard ---
@@ -430,7 +448,7 @@ namespace SCMS.Domain.Features.Dashboards
             var upcomingAppts = await _context.TblAppointments
                 .AsNoTracking()
                 .Include(a => a.Patient)
-                .Where(a => patientIds.Contains(a.PatientId) && a.Datetime >= DateTime.UtcNow && (a.Status == "pending" || a.Status == "confirmed"))
+                .Where(a => patientIds.Contains(a.PatientId) && a.Status != "cancelled")
                 .OrderBy(a => a.Datetime)
                 .ToListAsync(cancellationToken);
 
@@ -508,12 +526,16 @@ namespace SCMS.Domain.Features.Dashboards
 
             return await _context.TblPayments
                 .AsNoTracking()
+                .Include(p => p.Appointment)
+                    .ThenInclude(a => a.Patient)
                 .Where(p => p.Appointment != null && patientIds.Contains(p.Appointment.PatientId) && p.PaymentStatus != "paid")
                 .Select(p => new UnpaidInvoiceDto
                 {
                     Id = p.Id,
                     AppointmentId = p.AppointmentId,
                     AppointmentCode = p.Appointment != null ? p.Appointment.AppointmentCode : "Unknown",
+                    PatientId = p.Appointment != null ? p.Appointment.PatientId : 0,
+                    PatientName = p.Appointment != null && p.Appointment.Patient != null ? p.Appointment.Patient.Name : "Unknown",
                     Amount = p.Amount,
                     Tax = p.Tax,
                     Charges = p.Charges,

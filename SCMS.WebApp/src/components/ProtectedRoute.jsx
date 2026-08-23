@@ -27,6 +27,16 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     if (!isAllowed) {
       // User is authenticated but unauthorized for this workspace.
       // Redirect safely to their own authorized portal.
+      if (
+        userRoles.includes("owner") ||
+        userRoles.includes("admin") ||
+        userRoles.includes("staff") ||
+        userRole === "owner" ||
+        userRole === "admin" ||
+        userRole === "staff"
+      ) {
+        return <Navigate to="/app/dashboard" replace />;
+      }
       if (userRoles.includes("doctor") || userRole === "doctor") {
         return <Navigate to="/doctor/dashboard" replace />;
       }

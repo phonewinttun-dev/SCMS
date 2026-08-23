@@ -257,6 +257,8 @@ namespace SCMS.Domain.Features.Dashboards.Models
         public int Id { get; init; }
         public int AppointmentId { get; init; }
         public string AppointmentCode { get; init; } = null!;
+        public int PatientId { get; init; }
+        public string? PatientName { get; init; }
         public decimal Amount { get; init; }
         public decimal Tax { get; init; }
         public decimal Charges { get; init; }

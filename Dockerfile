@@ -1,8 +1,8 @@
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 USER $APP_UID
 WORKDIR /app
-EXPOSE 7860
-ENV ASPNETCORE_URLS=http://+:7860
+EXPOSE 8080
+ENV ASPNETCORE_HTTP_PORTS=8080
 
 # This stage is used to build the service project
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build

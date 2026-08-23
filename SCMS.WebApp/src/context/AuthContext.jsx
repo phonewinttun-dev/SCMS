@@ -76,7 +76,12 @@ const pickUser = (data, email) => {
     ? [rawRoles.toLowerCase().trim()]
     : [];
 
-  const primaryRole = roles[0] || (user?.role ? String(user.role).toLowerCase().trim() : "user");
+  const primaryRole =
+    roles.find((r) => ["admin", "owner", "staff"].includes(r)) ||
+    roles.find((r) => r === "doctor") ||
+    roles.find((r) => ["user", "patient"].includes(r)) ||
+    roles[0] ||
+    (user?.role ? String(user.role).toLowerCase().trim() : "user");
 
   return {
     ...user,

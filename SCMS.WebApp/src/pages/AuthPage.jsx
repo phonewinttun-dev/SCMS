@@ -63,7 +63,9 @@ export default function AuthPage({ mode = "login" }) {
         ? user.roles.map((r) => String(r).toLowerCase())
         : [String(user.role || "").toLowerCase()];
 
-      if (userRoles.includes("doctor")) {
+      if (userRoles.includes("owner") || userRoles.includes("admin") || userRoles.includes("staff")) {
+        navigate("/app/dashboard", { replace: true });
+      } else if (userRoles.includes("doctor")) {
         navigate("/doctor/dashboard", { replace: true });
       } else if (userRoles.includes("user") || userRoles.includes("patient")) {
         navigate("/user/dashboard", { replace: true });
@@ -141,7 +143,9 @@ export default function AuthPage({ mode = "login" }) {
         ? loggedUser.roles.map((r) => String(r).toLowerCase())
         : [String(loggedUser?.role || "").toLowerCase()];
 
-      if (userRoles.includes("doctor")) {
+      if (userRoles.includes("owner") || userRoles.includes("admin") || userRoles.includes("staff")) {
+        navigate(location.state?.from?.pathname || "/app/dashboard", { replace: true });
+      } else if (userRoles.includes("doctor")) {
         navigate("/doctor/dashboard", { replace: true });
       } else if (userRoles.includes("user") || userRoles.includes("patient")) {
         navigate("/user/dashboard", { replace: true });
