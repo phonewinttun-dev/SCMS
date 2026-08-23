@@ -36,14 +36,26 @@ namespace SCMS.Api.Controllers
             return result.IsFailure ? BadRequest(result) : Ok(result);
         }
 
-        /// <summary>Submit screenshot proof for manual bank transfer or mobile wallet payment.</summary>
+        /// <summary>Submit screenshot proof and last 6 digits of transaction ID for manual bank transfer or mobile wallet payment.</summary>
         [HttpPost("manual-proof")]
+        [Consumes("multipart/form-data")]
         [HasPermission("Payments.Create")]
         [ProducesResponseType(typeof(Result<ManualPaymentProofResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(Result), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> SubmitManualPaymentProof([FromBody] ManualPaymentProofRequest request)
+        public async Task<IActionResult> SubmitManualPaymentProof([FromForm] ManualPaymentProofRequest request, IFormFile? screenshot)
         {
-            var result = await _paymentService.SubmitManualPaymentProofAsync(request);
+            var result = await _paymentService.SubmitManualPaymentProofAsync(request, screenshot);
+            return result.IsFailure ? BadRequest(result) : Ok(result);
+        }
+
+        /// <summary>Get payment transaction details by ID.</summary>
+        [HttpGet("{id:int}")]
+        [HasPermission("Payments.View")]
+        [ProducesResponseType(typeof(Result<GetPaymentByIdResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Result), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetPaymentById(int id)
+        {
+            var result = await _paymentService.GetPaymentByIdAsync(id);
             return result.IsFailure ? BadRequest(result) : Ok(result);
         }
 
@@ -112,6 +124,7 @@ namespace SCMS.Api.Controllers
                 PaymentMethod = result.Data.PaymentMethod,
                 PaymentStatus = result.Data.PaymentStatus,
                 PaymentScreenshot = result.Data.PaymentScreenshot,
+                TransactionRef = result.Data.TransactionRef,
                 PaidAt = result.Data.PaidAt
             };
 

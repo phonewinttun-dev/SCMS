@@ -41,6 +41,14 @@ try
     });
 
     builder.Services.AddSignalR();
+    builder.Services.AddHealthChecks();
+
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
 
 
 
@@ -157,7 +165,12 @@ try
     var app = builder.Build();
 
 
-    if (app.Environment.IsDevelopment())
+    app.UseForwardedHeaders();
+
+    var enableScalarDocs = app.Environment.IsDevelopment()
+        || builder.Configuration.GetValue("Features:EnableScalarDocs", true);
+
+    if (enableScalarDocs)
     {
         app.MapSwagger("/openapi/{documentName}.json");
 
@@ -165,7 +178,11 @@ try
         {
             options.AddPreferredSecuritySchemes(new[] { "Bearer" });
         });
+
+        app.MapGet("/", () => Results.Redirect("/scalar")).ExcludeFromDescription();
     }
+
+    app.MapHealthChecks("/health");
 
     await app.Services.EnsureScmsDatabaseCreatedAsync(app.Configuration, app.Logger);
 
