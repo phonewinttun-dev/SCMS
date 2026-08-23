@@ -472,30 +472,18 @@ export default function Reports() {
             </div>
           )}
 
-          {/* Action Buttons: Preview & Download */}
+          {/* Action Button: Download PDF */}
           <div className="flex items-center gap-2 w-full sm:col-span-2 lg:col-span-2">
             <button
               type="button"
-              onClick={loadReport}
-              disabled={!canGenerate || loading}
-              aria-label="View report preview"
-              className="scms-btn-apricot flex-1 h-11 text-xs font-bold flex items-center justify-center gap-2 btn-target rounded-2xl shadow-sm bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer border-none"
-              title={!canGenerate ? (t.chooseTimeframePrompt || "Choose a category and timeframe first") : (t.generateReport || "View Preview")}
-            >
-              <ReaderIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
-              <span>{loading ? t.generating || "Loading..." : t.generateReport || "View Preview"}</span>
-            </button>
-
-            <button
-              type="button"
               onClick={handleDownloadPdf}
-              disabled={downloading || loading || !reportData}
+              disabled={downloading || loading || !canGenerate}
               aria-label="Download report as PDF"
-              className="scms-btn-outline h-11 px-3.5 text-xs font-bold flex items-center justify-center gap-2 btn-target rounded-2xl shadow-sm disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              title={!reportData ? "View a preview first before downloading PDF" : (t.exportPdf || "Download PDF")}
+              className="scms-btn-apricot w-full h-11 text-xs font-bold flex items-center justify-center gap-2 btn-target rounded-2xl shadow-sm bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer border-none"
+              title={!canGenerate ? (t.chooseTimeframePrompt || "Choose a category and timeframe first") : (t.exportPdf || "Download PDF")}
             >
               <DownloadIcon className={`w-4 h-4 shrink-0 ${downloading ? "animate-bounce" : ""}`} aria-hidden="true" />
-              <span>{downloading ? "Exporting..." : "PDF"}</span>
+              <span>{downloading ? "Exporting..." : t.exportPdf || "Download PDF"}</span>
             </button>
           </div>
         </div>
