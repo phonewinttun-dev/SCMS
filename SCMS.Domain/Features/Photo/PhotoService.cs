@@ -21,13 +21,8 @@ namespace SCMS.Domain.Features.Photo
             _cloudinary = cloudinary;
         }
 
-        public async Task<Result<PhotoUploadResult>> UploadPhotoAsync(IFormFile file)
+        public async Task<Result<PhotoUploadResult>> UploadPhotoAsync(IFormFile file, string folder = "scms/medicines")
         {
-            if (_cloudinary == null)
-            {
-                return Result<PhotoUploadResult>.Failure("Cloudinary photo service is not configured.");
-            }
-
             if (file == null || file.Length == 0)
             {
                 return Result<PhotoUploadResult>.Failure("No file was uploaded.");
@@ -46,28 +41,53 @@ namespace SCMS.Domain.Features.Photo
 
             try
             {
-                using var stream = file.OpenReadStream();
-                var uploadParams = new ImageUploadParams
+                if (_cloudinary != null)
                 {
-                    File = new FileDescription(file.FileName, stream),
-                    Folder = "scms/medicines",
-                    Transformation = new Transformation().Width(500).Height(500).Crop("limit")
-                };
+                    using var stream = file.OpenReadStream();
+                    var uploadParams = new ImageUploadParams
+                    {
+                        File = new FileDescription(file.FileName, stream),
+                        Folder = folder,
+                        Transformation = new Transformation().Width(1200).Height(1200).Crop("limit")
+                    };
 
-                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                    var uploadResult = await _cloudinary.UploadAsync(uploadParams);
 
-                if (uploadResult.Error != null)
-                {
-                    return Result<PhotoUploadResult>.Failure($"Cloudinary upload error: {uploadResult.Error.Message}");
+                    if (uploadResult.Error != null)
+                    {
+                        return Result<PhotoUploadResult>.Failure($"Cloudinary upload error: {uploadResult.Error.Message}");
+                    }
+
+                    var result = new PhotoUploadResult
+                    {
+                        PublicId = uploadResult.PublicId,
+                        Url = uploadResult.SecureUrl.ToString()
+                    };
+
+                    return Result<PhotoUploadResult>.Success(result, "Photo uploaded successfully.");
                 }
-
-                var result = new PhotoUploadResult
+                else
                 {
-                    PublicId = uploadResult.PublicId,
-                    Url = uploadResult.SecureUrl.ToString()
-                };
+                    // Fallback to local static file storage when Cloudinary is not configured
+                    var cleanFolder = folder.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+                    var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", cleanFolder);
+                    Directory.CreateDirectory(uploadsDir);
 
-                return Result<PhotoUploadResult>.Success(result, "Photo uploaded successfully.");
+                    var uniqueFileName = $"{Guid.NewGuid()}{extension}";
+                    var filePath = Path.Combine(uploadsDir, uniqueFileName);
+
+                    using (var localStream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(localStream);
+                    }
+
+                    var relativeUrl = $"/uploads/{folder.Trim('/')}/{uniqueFileName}";
+                    return Result<PhotoUploadResult>.Success(new PhotoUploadResult
+                    {
+                        PublicId = uniqueFileName,
+                        Url = relativeUrl
+                    }, "Photo uploaded successfully.");
+                }
             }
             catch (Exception ex)
             {
@@ -77,11 +97,6 @@ namespace SCMS.Domain.Features.Photo
 
         public async Task<Result> DeletePhotoAsync(string publicId)
         {
-            if (_cloudinary == null)
-            {
-                return Result.Failure("Cloudinary photo service is not configured.");
-            }
-
             if (string.IsNullOrWhiteSpace(publicId))
             {
                 return Result.Success("No photo to delete."); // Treat empty as success to simplify flow
@@ -89,20 +104,33 @@ namespace SCMS.Domain.Features.Photo
 
             try
             {
-                var deleteParams = new DeletionParams(publicId);
-                var deleteResult = await _cloudinary.DestroyAsync(deleteParams);
-
-                if (deleteResult.Error != null)
+                if (_cloudinary != null)
                 {
-                    return Result.Failure($"Cloudinary delete error: {deleteResult.Error.Message}");
+                    var deleteParams = new DeletionParams(publicId);
+                    var deleteResult = await _cloudinary.DestroyAsync(deleteParams);
+
+                    if (deleteResult.Error != null)
+                    {
+                        return Result.Failure($"Cloudinary delete error: {deleteResult.Error.Message}");
+                    }
+
+                    if (deleteResult.Result == "ok" || deleteResult.Result == "not_found")
+                    {
+                        return Result.Success("Photo deleted successfully.");
+                    }
+
+                    return Result.Failure($"Failed to delete photo. Cloudinary status: {deleteResult.Result}");
                 }
-
-                if (deleteResult.Result == "ok" || deleteResult.Result == "not_found")
+                else
                 {
+                    // Local delete if file exists
+                    var files = Directory.GetFiles(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads"), publicId + "*", SearchOption.AllDirectories);
+                    foreach (var f in files)
+                    {
+                        File.Delete(f);
+                    }
                     return Result.Success("Photo deleted successfully.");
                 }
-
-                return Result.Failure($"Failed to delete photo. Cloudinary status: {deleteResult.Result}");
             }
             catch (Exception ex)
             {

@@ -6,7 +6,7 @@ namespace SCMS.Domain.Features.Photo
 {
     public interface IPhotoService
     {
-        Task<Result<PhotoUploadResult>> UploadPhotoAsync(IFormFile file);
+        Task<Result<PhotoUploadResult>> UploadPhotoAsync(IFormFile file, string folder = "scms/medicines");
         Task<Result> DeletePhotoAsync(string publicId);
     }
 
