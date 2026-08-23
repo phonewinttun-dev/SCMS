@@ -246,6 +246,35 @@ namespace SCMS.Domain.Features.Payments
                 await _context.SaveChangesAsync();
             }
 
+            // Send notification to admin / clinic staff
+            var adminTitle = "New Payment Proof Submitted";
+            var patientDisplayName = appointment.Patient?.Name ?? "Patient";
+            var adminDesc = $"Payment transfer proof of {request.Amount:N0} MMK (Txn: {request.TransactionLast6.Trim()}) uploaded by {patientDisplayName} for Visit {appointment.AppointmentCode}. Verification required.";
+            var adminRoute = "/app/payments";
+
+            if (_notificationService != null)
+            {
+                await _notificationService.CreateNotificationAsync(
+                    null,
+                    adminTitle,
+                    adminDesc,
+                    adminRoute);
+            }
+            else
+            {
+                var adminNotif = new TblNotification
+                {
+                    UserId = null,
+                    Title = adminTitle,
+                    Description = adminDesc,
+                    ActionRoute = adminRoute,
+                    CreatedAt = DateTime.UtcNow,
+                    DeleteFlag = false
+                };
+                _context.TblNotifications.Add(adminNotif);
+                await _context.SaveChangesAsync();
+            }
+
             return Result<ManualPaymentProofResponse>.Success(MapToManualPaymentProofResponse(payment, appointment), "Manual payment proof submitted. Awaiting verification.");
         }
 

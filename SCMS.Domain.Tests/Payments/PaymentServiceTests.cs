@@ -88,7 +88,43 @@ public class PaymentServiceTests
         Assert.True(approveResult.IsSuccess);
         Assert.Equal("paid", approveResult.Data!.PaymentStatus);
         Assert.Equal("confirmed", (await db.Context.TblAppointments.FindAsync(appointment.Id))!.Status);
-        Assert.Equal(2, db.Context.TblNotifications.Count());
+        Assert.Equal(3, db.Context.TblNotifications.Count());
+    }
+
+    [Fact]
+    public async Task SubmitManualPaymentProofAsync_SendsNotificationToAdminAndPatient()
+    {
+        using var db = new TestDatabase();
+        var user = TestData.AddUser(db);
+        var patient = TestData.AddPatient(db, user, name: "Ko Mg Mg");
+        var appointment = TestData.AddAppointment(db, patient);
+        var service = new PaymentService(db.Context);
+
+        var result = await service.SubmitManualPaymentProofAsync(new ManualPaymentProofRequest
+        {
+            AppointmentId = appointment.Id,
+            PaymentMethod = "kbzpay",
+            Amount = 15000m,
+            TransactionLast6 = "123456",
+            ScreenshotUrl = "https://res.cloudinary.com/demo/image/upload/v1/proof.jpg"
+        });
+
+        Assert.True(result.IsSuccess);
+        var notifications = await db.Context.TblNotifications.ToListAsync();
+        Assert.Equal(2, notifications.Count);
+
+        // 1. Patient Notification
+        var patientNotif = notifications.Single(n => n.UserId == user.UserId);
+        Assert.Equal("Payment Proof Submitted", patientNotif.Title);
+        Assert.Equal("/user/billing", patientNotif.ActionRoute);
+
+        // 2. Admin Broadcast Notification
+        var adminNotif = notifications.Single(n => n.UserId == null);
+        Assert.Equal("New Payment Proof Submitted", adminNotif.Title);
+        Assert.Equal("/app/payments", adminNotif.ActionRoute);
+        Assert.Contains("Ko Mg Mg", adminNotif.Description);
+        Assert.Contains("15,000 MMK", adminNotif.Description);
+        Assert.Contains("123456", adminNotif.Description);
     }
 
     [Theory]

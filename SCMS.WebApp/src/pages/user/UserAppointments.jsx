@@ -219,7 +219,7 @@ export default function UserAppointments() {
         reason: sanitizeText(bookingForm.reason) || "General Consultation",
       });
 
-      const newApptId = apptRes?.appointmentId || apptRes?.id;
+      const newApptId = apptRes?.data?.appointmentId || apptRes?.data?.id || apptRes?.appointmentId || apptRes?.id;
 
       // 2. Submit Manual Payment Proof
       if (newApptId && bookingForm.screenshotFile) {
