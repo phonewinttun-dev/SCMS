@@ -24,6 +24,7 @@ namespace SCMS.Domain.Features.Payments.Models
         public string PaymentMethod { get; init; } = null!;
         public string PaymentStatus { get; init; } = null!;
         public string? PaymentScreenshot { get; init; }
+        public string? TransactionRef { get; init; }
         public DateTime? PaidAt { get; init; }
     }
 
@@ -49,6 +50,7 @@ namespace SCMS.Domain.Features.Payments.Models
         public string PaymentMethod { get; init; } = null!;
         public string PaymentStatus { get; init; } = null!;
         public string? PaymentScreenshot { get; init; }
+        public string? TransactionRef { get; init; }
         public DateTime? PaidAt { get; init; }
     }
 
@@ -65,6 +67,7 @@ namespace SCMS.Domain.Features.Payments.Models
         public string PaymentMethod { get; init; } = null!;
         public string PaymentStatus { get; init; } = null!;
         public string? PaymentScreenshot { get; init; }
+        public string? TransactionRef { get; init; }
         public DateTime? PaidAt { get; init; }
     }
 
@@ -98,24 +101,28 @@ namespace SCMS.Domain.Features.Payments.Models
         public string PaymentMethod { get; init; } = null!;
         public string PaymentStatus { get; init; } = null!;
         public string? PaymentScreenshot { get; init; }
+        public string? TransactionRef { get; init; }
         public DateTime? PaidAt { get; init; }
     }
 
-    /// <summary>Payload for submitting manual payment proof screenshot.</summary>
-    public sealed record ManualPaymentProofRequest
+    /// <summary>Payload for submitting manual payment proof screenshot and transaction number.</summary>
+    public class ManualPaymentProofRequest
     {
         [Required]
-        public required int AppointmentId { get; init; }
+        public int AppointmentId { get; set; }
 
         [Required]
-        public required string PaymentMethod { get; init; } // kbzpay / wavepay
+        public string PaymentMethod { get; set; } = null!; // kbzpay / wavepay / cbpay / ayapay
 
         [Required]
         [Range(0.01, double.MaxValue, ErrorMessage = "Payment amount must be greater than zero.")]
-        public required decimal Amount { get; init; }
+        public decimal Amount { get; set; }
 
-        [Required]
-        public required string ScreenshotUrl { get; init; }
+        [Required(ErrorMessage = "Transaction ID last 6 digits are required.")]
+        [RegularExpression(@"^\d{6}$", ErrorMessage = "Transaction ID must be exactly the last 6 digits of the payment receipt.")]
+        public string TransactionLast6 { get; set; } = null!;
+
+        public string? ScreenshotUrl { get; set; }
     }
 
     /// <summary>Response returned upon submitting manual payment proof.</summary>
@@ -131,6 +138,7 @@ namespace SCMS.Domain.Features.Payments.Models
         public string PaymentMethod { get; init; } = null!;
         public string PaymentStatus { get; init; } = null!;
         public string? PaymentScreenshot { get; init; }
+        public string? TransactionRef { get; init; }
         public DateTime? PaidAt { get; init; }
     }
 
@@ -147,6 +155,7 @@ namespace SCMS.Domain.Features.Payments.Models
         public string PaymentMethod { get; init; } = null!;
         public string PaymentStatus { get; init; } = null!;
         public string? PaymentScreenshot { get; init; }
+        public string? TransactionRef { get; init; }
         public DateTime? PaidAt { get; init; }
     }
 
@@ -163,6 +172,7 @@ namespace SCMS.Domain.Features.Payments.Models
         public string PaymentMethod { get; init; } = null!;
         public string PaymentStatus { get; init; } = null!;
         public string? PaymentScreenshot { get; init; }
+        public string? TransactionRef { get; init; }
         public DateTime? PaidAt { get; init; }
     }
 }

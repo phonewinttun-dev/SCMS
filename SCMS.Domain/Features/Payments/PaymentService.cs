@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using SCMS.Database.Models;
 using SCMS.Domain.Features.Notifications;
 using SCMS.Domain.Features.Payments.Models;
+using SCMS.Domain.Features.Photo;
 using SCMS.Shared;
 
 namespace SCMS.Domain.Features.Payments
@@ -14,6 +16,7 @@ namespace SCMS.Domain.Features.Payments
     {
         private readonly AppDbContext _context;
         private readonly INotificationService? _notificationService;
+        private readonly IPhotoService? _photoService;
         private static readonly HashSet<string> AllowedPaymentStatuses = new(StringComparer.OrdinalIgnoreCase)
         {
             "pending",
@@ -23,10 +26,11 @@ namespace SCMS.Domain.Features.Payments
             "refunded"
         };
 
-        public PaymentService(AppDbContext context, INotificationService? notificationService = null)
+        public PaymentService(AppDbContext context, INotificationService? notificationService = null, IPhotoService? photoService = null)
         {
             _context = context;
             _notificationService = notificationService;
+            _photoService = photoService;
         }
 
         public async Task<Result<ProcessPaymentCallbackResponse>> ProcessGatewayCallbackAsync(ProcessPaymentCallbackRequest request)
@@ -127,7 +131,7 @@ namespace SCMS.Domain.Features.Payments
             return Result<ProcessPaymentCallbackResponse>.Success(MapToProcessPaymentCallbackResponse(payment, appointment), "Gateway callback processed successfully.");
         }
 
-        public async Task<Result<ManualPaymentProofResponse>> SubmitManualPaymentProofAsync(ManualPaymentProofRequest request)
+        public async Task<Result<ManualPaymentProofResponse>> SubmitManualPaymentProofAsync(ManualPaymentProofRequest request, IFormFile? screenshotFile = null)
         {
             if (request.AppointmentId <= 0)
             {
@@ -141,7 +145,33 @@ namespace SCMS.Domain.Features.Payments
             {
                 return Result<ManualPaymentProofResponse>.Failure("Payment method is required.");
             }
-            if (string.IsNullOrWhiteSpace(request.ScreenshotUrl))
+            if (string.IsNullOrWhiteSpace(request.TransactionLast6) || request.TransactionLast6.Trim().Length != 6 || !request.TransactionLast6.Trim().All(char.IsDigit))
+            {
+                return Result<ManualPaymentProofResponse>.Failure("Transaction ID must be exactly the last 6 digits of the payment receipt.");
+            }
+
+            string? screenshotUrl = null;
+            if (screenshotFile != null && screenshotFile.Length > 0)
+            {
+                if (_photoService == null)
+                {
+                    return Result<ManualPaymentProofResponse>.Failure("Photo service is not configured.");
+                }
+
+                var uploadResult = await _photoService.UploadPhotoAsync(screenshotFile, "scms/payments");
+                if (!uploadResult.IsSuccess || uploadResult.Data == null)
+                {
+                    return Result<ManualPaymentProofResponse>.Failure(uploadResult.Message ?? "Failed to upload payment proof screenshot.");
+                }
+
+                screenshotUrl = uploadResult.Data.Url;
+            }
+            else if (!string.IsNullOrWhiteSpace(request.ScreenshotUrl))
+            {
+                screenshotUrl = request.ScreenshotUrl.Trim();
+            }
+
+            if (string.IsNullOrWhiteSpace(screenshotUrl))
             {
                 return Result<ManualPaymentProofResponse>.Failure("Payment proof screenshot is required.");
             }
@@ -168,7 +198,8 @@ namespace SCMS.Domain.Features.Payments
                     Charges = 0,
                     PaymentMethod = request.PaymentMethod.ToLower().Trim(),
                     PaymentStatus = "pending", // Pending manual approval
-                    PaymentScreenshot = request.ScreenshotUrl,
+                    PaymentScreenshot = screenshotUrl,
+                    TransactionRef = request.TransactionLast6.Trim(),
                     UpdatedAt = DateTime.UtcNow
                 };
                 _context.TblPayments.Add(payment);
@@ -182,7 +213,8 @@ namespace SCMS.Domain.Features.Payments
                 payment.Amount = request.Amount;
                 payment.Tax = request.Amount * 0.05m;
                 payment.PaymentMethod = request.PaymentMethod.ToLower().Trim();
-                payment.PaymentScreenshot = request.ScreenshotUrl;
+                payment.PaymentScreenshot = screenshotUrl;
+                payment.TransactionRef = request.TransactionLast6.Trim();
                 payment.PaymentStatus = "pending"; // Reset to pending approval
                 payment.UpdatedAt = DateTime.UtcNow;
             }
@@ -195,7 +227,7 @@ namespace SCMS.Domain.Features.Payments
                 await _notificationService.CreateNotificationAsync(
                     appointment.Patient.UserId,
                     "Payment Proof Uploaded",
-                    $"Your manual transfer proof (Amount: {request.Amount:N2}) is uploaded. It will be verified by clinic staff shortly.",
+                    $"Your manual transfer proof (Amount: {request.Amount:N2}, Txn: {request.TransactionLast6.Trim()}) is uploaded. It will be verified by clinic staff shortly.",
                     $"/appointments/{appointment.Id}");
             }
             else
@@ -204,7 +236,7 @@ namespace SCMS.Domain.Features.Payments
                 {
                     UserId = appointment.Patient.UserId,
                     Title = "Payment Proof Uploaded",
-                    Description = $"Your manual transfer proof (Amount: {request.Amount:N2}) is uploaded. It will be verified by clinic staff shortly.",
+                    Description = $"Your manual transfer proof (Amount: {request.Amount:N2}, Txn: {request.TransactionLast6.Trim()}) is uploaded. It will be verified by clinic staff shortly.",
                     ActionRoute = $"/appointments/{appointment.Id}",
                     CreatedAt = DateTime.UtcNow,
                     DeleteFlag = false
@@ -394,6 +426,7 @@ namespace SCMS.Domain.Features.Payments
                 PaymentMethod = p.PaymentMethod,
                 PaymentStatus = p.PaymentStatus,
                 PaymentScreenshot = p.PaymentScreenshot,
+                TransactionRef = p.TransactionRef,
                 PaidAt = p.PaidAt
             };
         }
@@ -412,6 +445,7 @@ namespace SCMS.Domain.Features.Payments
                 PaymentMethod = p.PaymentMethod,
                 PaymentStatus = p.PaymentStatus,
                 PaymentScreenshot = p.PaymentScreenshot,
+                TransactionRef = p.TransactionRef,
                 PaidAt = p.PaidAt
             };
         }
@@ -430,6 +464,7 @@ namespace SCMS.Domain.Features.Payments
                 PaymentMethod = p.PaymentMethod,
                 PaymentStatus = p.PaymentStatus,
                 PaymentScreenshot = p.PaymentScreenshot,
+                TransactionRef = p.TransactionRef,
                 PaidAt = p.PaidAt
             };
         }
@@ -448,6 +483,7 @@ namespace SCMS.Domain.Features.Payments
                 PaymentMethod = p.PaymentMethod,
                 PaymentStatus = p.PaymentStatus,
                 PaymentScreenshot = p.PaymentScreenshot,
+                TransactionRef = p.TransactionRef,
                 PaidAt = p.PaidAt
             };
         }
@@ -466,6 +502,7 @@ namespace SCMS.Domain.Features.Payments
                 PaymentMethod = p.PaymentMethod,
                 PaymentStatus = p.PaymentStatus,
                 PaymentScreenshot = p.PaymentScreenshot,
+                TransactionRef = p.TransactionRef,
                 PaidAt = p.PaidAt
             };
         }
@@ -484,6 +521,7 @@ namespace SCMS.Domain.Features.Payments
                 PaymentMethod = p.PaymentMethod,
                 PaymentStatus = p.PaymentStatus,
                 PaymentScreenshot = p.PaymentScreenshot,
+                TransactionRef = p.TransactionRef,
                 PaidAt = p.PaidAt
             };
         }

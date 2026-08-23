@@ -76,6 +76,7 @@ public class PaymentServiceTests
             AppointmentId = appointment.Id,
             PaymentMethod = "wavepay",
             Amount = 12000m,
+            TransactionLast6 = "661073",
             ScreenshotUrl = "proof.png"
         });
         var paymentId = proofResult.Data!.Id;
@@ -83,10 +84,38 @@ public class PaymentServiceTests
         var approveResult = await service.ApprovePaymentAsync(paymentId);
 
         Assert.True(proofResult.IsSuccess);
+        Assert.Equal("661073", proofResult.Data!.TransactionRef);
         Assert.True(approveResult.IsSuccess);
         Assert.Equal("paid", approveResult.Data!.PaymentStatus);
         Assert.Equal("confirmed", (await db.Context.TblAppointments.FindAsync(appointment.Id))!.Status);
         Assert.Equal(2, db.Context.TblNotifications.Count());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("123")]
+    [InlineData("12345")]
+    [InlineData("1234567")]
+    [InlineData("abcdef")]
+    public async Task SubmitManualPaymentProofAsync_RejectsInvalidTransactionLast6(string invalidTxn)
+    {
+        using var db = new TestDatabase();
+        var user = TestData.AddUser(db);
+        var patient = TestData.AddPatient(db, user);
+        var appointment = TestData.AddAppointment(db, patient);
+        var service = new PaymentService(db.Context);
+
+        var result = await service.SubmitManualPaymentProofAsync(new ManualPaymentProofRequest
+        {
+            AppointmentId = appointment.Id,
+            PaymentMethod = "kbzpay",
+            Amount = 7000m,
+            TransactionLast6 = invalidTxn,
+            ScreenshotUrl = "proof.png"
+        });
+
+        Assert.True(result.IsFailure);
+        Assert.Contains("Transaction ID must be exactly the last 6 digits", result.Message);
     }
 
     [Fact]
