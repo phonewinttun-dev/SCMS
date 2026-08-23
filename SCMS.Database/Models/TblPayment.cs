@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SCMS.Database.Models;
@@ -28,6 +28,8 @@ public partial class TblPayment
     public string PaymentStatus { get; set; } = null!;
 
     public string? PaymentScreenshot { get; set; }
+
+    public string? TransactionRef { get; set; }
 
     public DateTime? PaidAt { get; set; }
 

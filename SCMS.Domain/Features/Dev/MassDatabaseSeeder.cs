@@ -128,8 +128,8 @@ namespace SCMS.Domain.Features.Dev
                     UpdatedAt = DateTime.UtcNow,
                     DeleteFlag = false
                 };
+                adminUser.TblUserRoles.Add(new TblUserRole { Role = "owner" });
                 adminUser.TblUserRoles.Add(new TblUserRole { Role = "admin" });
-                adminUser.TblUserRoles.Add(new TblUserRole { Role = "doctor" });
                 _context.TblUsers.Add(adminUser);
             }
 

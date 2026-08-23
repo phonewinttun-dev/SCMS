@@ -128,8 +128,8 @@ namespace SCMS.Database.Seeding
                     UpdatedAt = DateTime.UtcNow,
                     DeleteFlag = false
                 };
+                adminUser.TblUserRoles.Add(new TblUserRole { Role = "owner" });
                 adminUser.TblUserRoles.Add(new TblUserRole { Role = "admin" });
-                adminUser.TblUserRoles.Add(new TblUserRole { Role = "doctor" });
                 _context.TblUsers.Add(adminUser);
             }
 
@@ -456,6 +456,8 @@ namespace SCMS.Database.Seeding
                         Charges = 0,
                         PaymentMethod = paymentMethods[random.Next(paymentMethods.Length)],
                         PaymentStatus = "paid",
+                        PaymentScreenshot = "/uploads/payments/demo-receipt.png",
+                        TransactionRef = "661073",
                         PaidAt = appt.Datetime.AddMinutes(20),
                         UpdatedAt = appt.Datetime.AddMinutes(20)
                     });

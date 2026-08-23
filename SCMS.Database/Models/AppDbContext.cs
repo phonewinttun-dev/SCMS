@@ -346,6 +346,9 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.PaymentScreenshot)
                 .HasMaxLength(500)
                 .HasColumnName("payment_screenshot");
+            entity.Property(e => e.TransactionRef)
+                .HasMaxLength(50)
+                .HasColumnName("transaction_ref");
             entity.Property(e => e.PaymentStatus)
                 .HasMaxLength(50)
                 .HasComment("pending / paid / partial / failed / refunded")
