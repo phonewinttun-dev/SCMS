@@ -40,6 +40,17 @@ namespace SCMS.Domain.Features.Mcp
                     Description = desc
                 };
 
+                // System.ComponentModel.DataAnnotations.AllowedValues doubles as the JSON Schema enum,
+                // so the accepted values are declared once and both validate and describe the property.
+                var allowedAttr = prop.GetCustomAttribute<AllowedValuesAttribute>();
+                if (allowedAttr?.Values is { Length: > 0 })
+                {
+                    propDef.Enum = allowedAttr.Values
+                        .Where(v => v != null)
+                        .Select(v => v!.ToString()!)
+                        .ToList();
+                }
+
                 if (jsonType == "array")
                 {
                     Type? itemType = null;

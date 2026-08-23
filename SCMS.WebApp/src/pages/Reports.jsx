@@ -11,6 +11,7 @@ import { Select } from "../components/ui/select";
 import { useLanguage } from "../context/LanguageContext";
 import { downloadBlob, reportsApi } from "../services/scmsApi";
 import { showError, showAlert } from "../services/dialogs";
+import { formatDate, formatDateTime } from "../utils/format";
 
 const formatCurrency = (val) => {
   if (val === null || val === undefined || isNaN(Number(val))) return "0.00";
@@ -18,28 +19,6 @@ const formatCurrency = (val) => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-};
-
-const formatDate = (val) => {
-  if (!val) return "-";
-  const d = new Date(val);
-  if (isNaN(d.getTime())) return String(val);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  return `${day}-${month}-${year}`;
-};
-
-const formatDateTime = (val) => {
-  if (!val) return "-";
-  const d = new Date(val);
-  if (isNaN(d.getTime())) return String(val);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  const hours = String(d.getUTCHours()).padStart(2, "0");
-  const minutes = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${day}-${month}-${year} ${hours}:${minutes}`;
 };
 
 const unwrapPayload = (res) => {
@@ -583,7 +562,7 @@ export default function Reports() {
                     `Revenue Report (${formatDate(reportData.periodStart)} to ${formatDate(reportData.periodEnd)})`}
                 </h2>
                 <div className="text-xs text-slate-500 font-mono mt-1">
-                  Generated: {formatDateTime(reportData.generatedAt || new Date())} UTC
+                  Generated: {formatDateTime(reportData.generatedAt || new Date())}
                 </div>
               </div>
 
@@ -749,7 +728,7 @@ export default function Reports() {
                     `Appointments Report (${formatDate(reportData.periodStart)} to ${formatDate(reportData.periodEnd)})`}
                 </h2>
                 <div className="text-xs text-slate-500 font-mono mt-1">
-                  Generated: {formatDateTime(reportData.generatedAt || new Date())} UTC
+                  Generated: {formatDateTime(reportData.generatedAt || new Date())}
                 </div>
               </div>
 
@@ -851,7 +830,7 @@ export default function Reports() {
                   {reportData.reportTitle || "Clinic Executive Performance Report"}
                 </h2>
                 <div className="text-xs text-slate-500 font-mono mt-1">
-                  Generated: {formatDateTime(reportData.generatedAt || new Date())} UTC
+                  Generated: {formatDateTime(reportData.generatedAt || new Date())}
                 </div>
               </div>
 
@@ -916,7 +895,7 @@ export default function Reports() {
                   {reportData.reportTitle || "Clinic Patient Directory and Demographics"}
                 </h2>
                 <div className="text-xs text-slate-500 font-mono mt-1">
-                  Generated: {formatDateTime(reportData.generatedAt || new Date())} UTC
+                  Generated: {formatDateTime(reportData.generatedAt || new Date())}
                 </div>
               </div>
 
@@ -1007,7 +986,7 @@ export default function Reports() {
                   {reportData.reportTitle || "Pharmacy Inventory & Batch Status Report"}
                 </h2>
                 <div className="text-xs text-slate-500 font-mono mt-1">
-                  Generated: {formatDateTime(reportData.generatedAt || new Date())} UTC
+                  Generated: {formatDateTime(reportData.generatedAt || new Date())}
                 </div>
               </div>
 
@@ -1104,7 +1083,7 @@ export default function Reports() {
                   {reportData.reportTitle || "Patient Care Follow-Up Consultation Schedules"}
                 </h2>
                 <div className="text-xs text-slate-500 font-mono mt-1">
-                  Generated: {formatDateTime(reportData.generatedAt || new Date())} UTC
+                  Generated: {formatDateTime(reportData.generatedAt || new Date())}
                 </div>
               </div>
 
@@ -1191,7 +1170,7 @@ export default function Reports() {
                   {reportData.reportTitle || "Clinic Prescriptions & Medication Dispensing Log"}
                 </h2>
                 <div className="text-xs text-slate-500 font-mono mt-1">
-                  Generated: {formatDateTime(reportData.generatedAt || new Date())} UTC
+                  Generated: {formatDateTime(reportData.generatedAt || new Date())}
                 </div>
               </div>
 

@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SCMS.Domain\SCMS.Domain.csproj" />
+    <ProjectReference Include="..\SCMS.Api\SCMS.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

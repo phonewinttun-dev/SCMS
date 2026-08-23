@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
@@ -15,6 +16,14 @@ namespace SCMS.Domain.Features.Mcp.Models
 
         [JsonPropertyName("inputSchema")]
         public JsonSchemaInput InputSchema { get; set; } = new();
+
+        /// <summary>
+        /// True for any tool that creates, updates, cancels, reschedules, or deletes clinic data.
+        /// The AI chat agent is read-only by design and must never be handed these tools - only the
+        /// human-driven Quick Actions UI (which requires an explicit confirm click) may invoke them.
+        /// </summary>
+        [JsonPropertyName("isMutating")]
+        public bool IsMutating { get; set; } = false;
     }
 
     public class JsonSchemaInput
@@ -37,6 +46,11 @@ namespace SCMS.Domain.Features.Mcp.Models
         [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
 
+        /// <summary>Closed set of accepted values. Lets the model pick a valid value instead of guessing from prose.</summary>
+        [JsonPropertyName("enum")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<string>? Enum { get; set; }
+
         [JsonPropertyName("items")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public JsonSchemaInput? Items { get; set; }
@@ -50,7 +64,8 @@ namespace SCMS.Domain.Features.Mcp.Models
 
     public class PeriodInput
     {
-        [Description("Aggregation period: 'daily' (default), 'weekly', 'monthly', or 'all'.")]
+        [AllowedValues("daily", "weekly", "monthly", "all")]
+        [Description("Aggregation period. Defaults to 'daily'.")]
         public string? Period { get; set; }
     }
 
@@ -96,7 +111,8 @@ namespace SCMS.Domain.Features.Mcp.Models
         public int AppointmentId { get; set; }
 
         [Required]
-        [Description("The new status: 'pending', 'confirmed', 'cancelled', or 'completed'.")]
+        [AllowedValues("pending", "confirmed", "cancelled", "completed")]
+        [Description("The new status.")]
         public string Status { get; set; } = string.Empty;
 
         [Description("Optional update notes explaining the status change.")]
@@ -139,7 +155,8 @@ namespace SCMS.Domain.Features.Mcp.Models
         public string PatientName { get; set; } = string.Empty;
 
         [Required]
-        [Description("The new status: 'pending', 'confirmed', 'cancelled', or 'completed'.")]
+        [AllowedValues("pending", "confirmed", "cancelled", "completed")]
+        [Description("The new status.")]
         public string Status { get; set; } = string.Empty;
 
         [Description("Optional physician or administrative notes.")]
@@ -208,7 +225,8 @@ namespace SCMS.Domain.Features.Mcp.Models
     public class BulkUpdateTodayAppointmentsStatusInput
     {
         [Required]
-        [Description("The new status: 'pending', 'confirmed', 'cancelled', or 'completed'.")]
+        [AllowedValues("pending", "confirmed", "cancelled", "completed")]
+        [Description("The new status.")]
         public string Status { get; set; } = string.Empty;
     }
 

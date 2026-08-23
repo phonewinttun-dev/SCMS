@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 using SCMS.Database.Models;
+using SCMS.Domain.Common;
+using SCMS.Domain.Features.Dashboards;
 using SCMS.Domain.Features.Mcp;
 using SCMS.Domain.Features.Mcp.Models;
 using SCMS.Domain.Tests.TestSupport;
@@ -18,13 +20,20 @@ namespace SCMS.Domain.Tests.Mcp
         public McpServiceTests()
         {
             _db = new TestDatabase();
-            _service = new McpService(_db.Context);
+            _service = new McpService(_db.Context, new DashboardService(_db.Context));
         }
 
         public void Dispose()
         {
             _db.Dispose();
         }
+
+        /// <summary>
+        /// UTC instant of midnight on a clinic-local day. Reschedule tests use tomorrow so the
+        /// target time is always in the future, whatever time of day the suite runs at.
+        /// </summary>
+        private static DateTime ClinicDayStartUtc(int daysFromToday = 0) =>
+            ClinicClock.DayBoundsUtc(ClinicClock.Today.AddDays(daysFromToday)).StartUtc;
 
         private async Task<TblUser> CreateTestUserAsync(string email)
         {
@@ -97,7 +106,7 @@ namespace SCMS.Domain.Tests.Mcp
             {
                 AppointmentCode = "APT-001-TEST",
                 PatientId = patient.PatientId,
-                Datetime = DateTime.UtcNow.Date.AddHours(10), // today
+                Datetime = ClinicClock.TodayBoundsUtc().StartUtc.AddHours(10), // today
                 Status = "pending",
                 Notes = "Consultation",
                 CreatedAt = DateTime.UtcNow,
@@ -190,7 +199,7 @@ namespace SCMS.Domain.Tests.Mcp
             {
                 AppointmentCode = "APT-002-TEST",
                 PatientId = patient.PatientId,
-                Datetime = DateTime.UtcNow.Date.AddHours(12),
+                Datetime = ClinicClock.TodayBoundsUtc().StartUtc.AddHours(12),
                 Status = "pending",
                 Notes = "Routine check",
                 CreatedAt = DateTime.UtcNow,
@@ -244,7 +253,7 @@ namespace SCMS.Domain.Tests.Mcp
             _db.Context.TblPatients.Add(patient);
             await _db.Context.SaveChangesAsync();
 
-            var apptDate = DateTime.UtcNow.Date;
+            var apptDate = ClinicClock.TodayBoundsUtc().StartUtc;
             var appointment1 = new TblAppointment
             {
                 AppointmentCode = "APT-003-TEST",
@@ -318,7 +327,7 @@ namespace SCMS.Domain.Tests.Mcp
             _db.Context.TblPatients.Add(patient);
             await _db.Context.SaveChangesAsync();
 
-            var apptDate = DateTime.UtcNow.Date;
+            var apptDate = ClinicDayStartUtc(1);
             var appointment = new TblAppointment
             {
                 AppointmentCode = "APT-005-TEST",
@@ -380,7 +389,7 @@ namespace SCMS.Domain.Tests.Mcp
             {
                 AppointmentCode = "APT-006-TEST",
                 PatientId = patient.PatientId,
-                Datetime = DateTime.UtcNow.Date.AddHours(9), // 9:00 AM today
+                Datetime = ClinicClock.TodayBoundsUtc().StartUtc.AddHours(9), // 9:00 AM today
                 Status = "pending",
                 Notes = "Initial consultation",
                 CreatedAt = DateTime.UtcNow,
@@ -434,7 +443,7 @@ namespace SCMS.Domain.Tests.Mcp
             _db.Context.TblPatients.Add(patient);
             await _db.Context.SaveChangesAsync();
 
-            var todayDate = DateTime.UtcNow.Date;
+            var todayDate = ClinicDayStartUtc(1);
             var appointment = new TblAppointment
             {
                 AppointmentCode = "APT-007-TEST",
@@ -490,14 +499,14 @@ namespace SCMS.Domain.Tests.Mcp
             _db.Context.TblPatients.Add(patient);
             await _db.Context.SaveChangesAsync();
 
-            var todayDate = DateTime.UtcNow.Date;
+            var todayDate = ClinicDayStartUtc(1);
             var appointment = new TblAppointment
             {
                 AppointmentCode = "APT-008-TEST",
                 PatientId = patient.PatientId,
                 Datetime = todayDate.AddHours(8), // 8:00 AM today
                 Status = "pending",
-                Notes = "Routine check | Rescheduled from 07:30 AM",
+                Notes = "Routine check | Rescheduled from 07:30",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -522,7 +531,7 @@ namespace SCMS.Domain.Tests.Mcp
 
             var updatedAppt = _db.Context.TblAppointments.Find(appointment.Id);
             Assert.NotNull(updatedAppt);
-            Assert.Equal("Routine check | Rescheduled from 08:00 AM", updatedAppt.Notes);
+            Assert.Equal("Routine check | Rescheduled from 08:00", updatedAppt.Notes);
         }
 
         [Fact]
@@ -545,7 +554,7 @@ namespace SCMS.Domain.Tests.Mcp
             _db.Context.TblPatients.Add(patient);
             await _db.Context.SaveChangesAsync();
 
-            var todayDate = DateTime.UtcNow.Date;
+            var todayDate = ClinicDayStartUtc(1);
             var appointment = new TblAppointment
             {
                 AppointmentCode = "APT-009-TEST",
@@ -559,13 +568,13 @@ namespace SCMS.Domain.Tests.Mcp
             _db.Context.TblAppointments.Add(appointment);
             await _db.Context.SaveChangesAsync();
 
-            // 1. Test with relative "today at 09:30"
+            // 1. Relative day word plus a 12-hour time
             var requestToday = new McpToolCallRequest
             {
                 Name = "reschedule_today_appointments",
                 Arguments = new Dictionary<string, object>
                 {
-                    { "targetStartTime", "today at 09:30 AM" }
+                    { "targetStartTime", "tomorrow at 09:30 AM" }
                 }
             };
             var resultToday = await _service.CallToolAsync(requestToday);
@@ -575,13 +584,13 @@ namespace SCMS.Domain.Tests.Mcp
             Assert.NotNull(updatedAppt);
             Assert.Equal(todayDate.AddHours(9).AddMinutes(30), updatedAppt.Datetime);
 
-            // 2. Test with simple time-only "10:30"
+            // 2. Relative day word plus a 24-hour time
             var requestTimeOnly = new McpToolCallRequest
             {
                 Name = "reschedule_today_appointments",
                 Arguments = new Dictionary<string, object>
                 {
-                    { "targetStartTime", "10:30" }
+                    { "targetStartTime", "tomorrow at 10:30" }
                 }
             };
             var resultTimeOnly = await _service.CallToolAsync(requestTimeOnly);
@@ -612,7 +621,7 @@ namespace SCMS.Domain.Tests.Mcp
             _db.Context.TblPatients.Add(patient);
             await _db.Context.SaveChangesAsync();
 
-            var todayDate = DateTime.UtcNow.Date;
+            var todayDate = ClinicClock.TodayBoundsUtc().StartUtc;
             var appointment = new TblAppointment
             {
                 AppointmentCode = "APT-010-TEST",
@@ -685,7 +694,7 @@ namespace SCMS.Domain.Tests.Mcp
             {
                 AppointmentCode = "APT-011-TEST",
                 PatientId = patient.PatientId,
-                Datetime = DateTime.UtcNow.Date.AddHours(11),
+                Datetime = ClinicClock.TodayBoundsUtc().StartUtc.AddHours(11),
                 Status = "cancelled",
                 Notes = "No show",
                 CreatedAt = DateTime.UtcNow,
@@ -739,5 +748,165 @@ namespace SCMS.Domain.Tests.Mcp
             public string? FamilyHistory { get; set; }
             public string? VaccinationHistory { get; set; }
         }
+
+        // ---------------------------------------------------------------
+        // Tool registry
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public async Task EveryAdvertisedTool_IsDispatchable()
+        {
+            // Guards against a tool being listed in the catalogue but missing from the
+            // CallToolAsync switch, which is how delete_prescription_template went dead.
+            foreach (var tool in _service.GetAvailableTools())
+            {
+                var result = await _service.CallToolAsync(new McpToolCallRequest
+                {
+                    Name = tool.Name,
+                    Arguments = new Dictionary<string, object>()
+                });
+
+                Assert.True(result.IsSuccess, $"Tool '{tool.Name}' is advertised but not dispatchable: {result.Message}");
+            }
+        }
+
+        [Fact]
+        public async Task CallToolAsync_WithUnknownTool_SaysSoExplicitly()
+        {
+            var result = await _service.CallToolAsync(new McpToolCallRequest { Name = "no_such_tool" });
+
+            Assert.True(result.IsFailure);
+            Assert.Contains("Unknown tool", result.Message);
+        }
+
+        [Fact]
+        public void StatusTools_DeclareTheirAcceptedValuesAsAnEnum()
+        {
+            var tool = _service.GetAvailableTools().First(t => t.Name == "update_appointment_status");
+            var status = tool.InputSchema.Properties["status"];
+
+            Assert.NotNull(status.Enum);
+            Assert.Equal(new[] { "pending", "confirmed", "cancelled", "completed" }, status.Enum!);
+            Assert.Contains("status", tool.InputSchema.Required);
+        }
+
+        // ---------------------------------------------------------------
+        // Error signalling
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public async Task CallToolAsync_WhenPatientMissing_FlagsTheResponseAsAnError()
+        {
+            var result = await _service.CallToolAsync(new McpToolCallRequest
+            {
+                Name = "get_patient_profile",
+                Arguments = new Dictionary<string, object> { { "patientId", 999999 } }
+            });
+
+            Assert.True(result.IsSuccess);
+            Assert.NotNull(result.Data);
+            Assert.True(result.Data!.IsError);
+            Assert.Contains("Patient not found", result.Data.Content[0].Text);
+        }
+
+        [Fact]
+        public async Task CallToolAsync_WithInvalidStatus_FlagsTheResponseAsAnError()
+        {
+            var result = await _service.CallToolAsync(new McpToolCallRequest
+            {
+                Name = "update_appointment_status",
+                Arguments = new Dictionary<string, object>
+                {
+                    { "appointmentId", 1 },
+                    { "status", "banana" }
+                }
+            });
+
+            Assert.NotNull(result.Data);
+            Assert.True(result.Data!.IsError);
+            Assert.Contains("Invalid status", result.Data.Content[0].Text);
+        }
+
+        [Fact]
+        public async Task CallToolAsync_OnSuccess_DoesNotFlagAnError()
+        {
+            var result = await _service.CallToolAsync(new McpToolCallRequest { Name = "get_today_appointments" });
+
+            Assert.True(result.IsSuccess);
+            Assert.NotNull(result.Data);
+            Assert.False(result.Data!.IsError);
+        }
+
+        // ---------------------------------------------------------------
+        // Safety rails
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public async Task CallToolAsync_RescheduleTodayAppointments_RefusesAPastTargetTime()
+        {
+            var result = await _service.CallToolAsync(new McpToolCallRequest
+            {
+                Name = "reschedule_today_appointments",
+                Arguments = new Dictionary<string, object>
+                {
+                    { "targetStartTime", ClinicDayStartUtc(-3).AddHours(9).ToString("o") }
+                }
+            });
+
+            Assert.NotNull(result.Data);
+            Assert.True(result.Data!.IsError);
+            Assert.Contains("in the past", result.Data.Content[0].Text);
+        }
+
+        [Fact]
+        public async Task CallToolAsync_UpdateStatusByPatientName_WillNotRewriteAClosedAppointment()
+        {
+            var user = await CreateTestUserAsync("closed@scms.demo");
+            var patient = new TblPatient
+            {
+                UserId = user.UserId,
+                Name = "Closed Case",
+                MobileNo = "09979991111",
+                DateOfBirth = new DateOnly(1980, 3, 3),
+                Gender = "female",
+                Address = "{}",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                DeleteFlag = false
+            };
+            _db.Context.TblPatients.Add(patient);
+            await _db.Context.SaveChangesAsync();
+
+            var appointment = new TblAppointment
+            {
+                AppointmentCode = "APT-CLOSED-TEST",
+                PatientId = patient.PatientId,
+                Datetime = ClinicDayStartUtc(-30).AddHours(10),
+                Status = "completed",
+                Notes = "Seen and discharged",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _db.Context.TblAppointments.Add(appointment);
+            await _db.Context.SaveChangesAsync();
+
+            var result = await _service.CallToolAsync(new McpToolCallRequest
+            {
+                Name = "update_appointment_status_by_patient_name",
+                Arguments = new Dictionary<string, object>
+                {
+                    { "patientName", "Closed Case" },
+                    { "status", "cancelled" }
+                }
+            });
+
+            Assert.NotNull(result.Data);
+            Assert.True(result.Data!.IsError);
+
+            var unchanged = _db.Context.TblAppointments.Find(appointment.Id);
+            Assert.Equal("completed", unchanged!.Status);
+            Assert.Equal("Seen and discharged", unchanged.Notes);
+        }
+
     }
 }

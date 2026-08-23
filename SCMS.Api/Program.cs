@@ -33,6 +33,13 @@ try
     builder.Services.AddProblemDetails();
     builder.Services.AddScmsFeatureServices(builder.Configuration);
 
+    // Gemini calls are chained up to 5 deep per chat turn, so cap each hop well under
+    // HttpClient's 100s default to keep the worst case bounded.
+    builder.Services.AddHttpClient(SCMS.Api.Controllers.McpController.GeminiHttpClientName, client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(30);
+    });
+
     builder.Services.AddSignalR();
 
 

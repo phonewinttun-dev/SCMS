@@ -12,6 +12,12 @@ services:
       - Database__Provider=PostgreSql
       - Database__EnsureCreated=false
       - ConnectionStrings__PostgreSqlConnection=Host=scms_db;Database=SCMS_db;Username=postgres;Password=admin;
+      - Clinic__TimeZone=Asia/Yangon
+      - Gemini__Model=gemini-3.5-flash-lite
+      # Gemini keys are rotated to spread the per-minute quota. Supply them from the host
+      # environment or a .env file; never commit real keys here.
+      - Gemini__ApiKeys__0=${GEMINI_API_KEY:-}
+      - Gemini__ApiKeys__1=${GEMINI_API_KEY_2:-}
     depends_on:
       - scms_db
 

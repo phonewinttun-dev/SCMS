@@ -7,6 +7,7 @@ import {
 } from "@radix-ui/react-icons";
 import ResourcePage from "./ResourcePage";
 import { useLanguage } from "../context/LanguageContext";
+import { formatDate } from "../utils/format";
 import {
   appointmentsApi,
   diseasesApi,
@@ -20,15 +21,7 @@ import {
 
 const idOf = (...keys) => (row) => keys.map((key) => row?.[key]).find(Boolean);
 const asNumber = (value) => (value === "" || value == null ? null : Number(value));
-const dateValue = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  return `${day}-${month}-${year}`;
-};
+const dateValue = (value) => (value ? formatDate(value) : "");
 const money = (value) => `MMK ${Number(value || 0).toLocaleString()}`;
 
 export function PatientsPage() {

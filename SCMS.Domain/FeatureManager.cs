@@ -53,6 +53,12 @@ namespace SCMS.Domain
             services.AddScoped<IPrescriptionService, PrescriptionService>();
             services.AddScoped<IPhotoService, PhotoService>();
             services.AddScoped<IMcpService, McpService>();
+
+            // Rotating pool of Gemini keys; singleton so cooldowns are shared across requests.
+            services.AddSingleton<IGeminiApiKeyProvider, GeminiApiKeyProvider>();
+
+            // The clinic's wall clock drives "today" and how bare times are interpreted.
+            SCMS.Domain.Common.ClinicClock.Configure(configuration["Clinic:TimeZone"]);
             services.AddScoped<SCMS.Domain.Features.Dev.MassDatabaseSeeder>();
             services.AddHostedService<InventoryMonitorService>();
 

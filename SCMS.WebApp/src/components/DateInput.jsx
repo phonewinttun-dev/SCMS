@@ -6,6 +6,7 @@ import {
   Cross2Icon,
 } from "@radix-ui/react-icons";
 import { cn } from "../lib/utils";
+import { formatDate } from "../utils/format";
 
 const MONTHS = [
   "January",
@@ -26,10 +27,7 @@ const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 const formatDisplayDate = (isoDate) => {
   if (!isoDate) return "";
-  const parts = String(isoDate).split("T")[0].split("-");
-  if (parts.length !== 3) return isoDate;
-  const [y, m, d] = parts;
-  return `${d}-${m}-${y}`;
+  return formatDate(isoDate);
 };
 
 const pad2 = (n) => String(n).padStart(2, "0");

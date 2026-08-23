@@ -1,10 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SCMS.Database.Models;
+using SCMS.Domain.Common;
 using SCMS.Shared;
 using SCMS.Domain.Features.Mcp.Models;
 using SCMS.Domain.Features.Prescriptions.Models;
@@ -14,19 +19,109 @@ namespace SCMS.Domain.Features.Mcp
 {
     public class McpService : IMcpService
     {
-        private static readonly string DateFormat = Common.FormatHelper.DateFormat;
-        private static readonly string DateTimeFormat = DateFormat + " hh:mm tt";
+        private const string DateFormat = FormatHelper.DateFormat;
+        private const string TimeFormat = FormatHelper.TimeFormat;
+        private const string DateTimeFormat = FormatHelper.DateTimeFormat;
+
+        /// <summary>Total active units below which a medicine is reported as critically low.</summary>
+        private const int LowStockThreshold = 20;
+
+        /// <summary>Default look-ahead window for the expiring-batches tool.</summary>
+        private const int DefaultExpiryWindowDays = 30;
+
+        /// <summary>Upper bound on how many appointments a single bulk tool call may mutate.</summary>
+        private const int BulkMutationLimit = 100;
+
+        /// <summary>How many historical records the patient-history tools return.</summary>
+        private const int VisitHistoryLimit = 10;
+        private const int PrescriptionHistoryLimit = 5;
+        private const int NotificationLimit = 10;
+
+        private static readonly string[] ValidAppointmentStatuses = { "pending", "confirmed", "cancelled", "completed" };
 
         private readonly AppDbContext _context;
         private readonly IDashboardService _dashboardService;
+        private readonly ILogger<McpService>? _logger;
 
-        public McpService(AppDbContext context, IDashboardService? dashboardService = null)
+        public McpService(AppDbContext context, IDashboardService dashboardService, ILogger<McpService>? logger = null)
         {
             _context = context;
-            _dashboardService = dashboardService ?? new DashboardService(context);
+            _dashboardService = dashboardService;
+            _logger = logger;
         }
 
-        public List<McpToolDefinition> GetAvailableTools()
+        /// <summary>
+        /// Marker for a tool that ran but could not do what was asked. Returning one of these
+        /// (rather than an anonymous object with an "error" member) is what lets CallToolAsync
+        /// set isError on the response, so both the UI and the model can tell success from failure.
+        /// </summary>
+        private sealed class ToolError
+        {
+            public ToolError(string message) => Message = message;
+
+            public string Message { get; }
+
+            public bool Error => true;
+        }
+
+        private static ToolError Fail(string message) => new(message);
+
+        /// <summary>Format a stored UTC instant as a clinic-local date: 24/06/2026.</summary>
+        private static string ClinicDate(DateTime utc) =>
+            ClinicClock.ToClinic(utc).ToString(DateFormat, CultureInfo.InvariantCulture);
+
+        /// <summary>Format a stored UTC instant as a clinic-local 24-hour time: 14:30.</summary>
+        private static string ClinicTime(DateTime utc) =>
+            ClinicClock.ToClinic(utc).ToString(TimeFormat, CultureInfo.InvariantCulture);
+
+        /// <summary>Format a stored UTC instant as a clinic-local date and time: 24/06/2026 14:30.</summary>
+        private static string ClinicDateTime(DateTime utc) =>
+            ClinicClock.ToClinic(utc).ToString(DateTimeFormat, CultureInfo.InvariantCulture);
+
+        /// <summary>Format a calendar date (no instant, so no conversion): 24/06/2026.</summary>
+        private static string CalendarDate(DateOnly date) =>
+            date.ToString(DateFormat, CultureInfo.InvariantCulture);
+
+        /// <summary>
+        /// Tools that write to clinic data. Kept out of the AI chat agent's hands entirely - see
+        /// <see cref="McpToolDefinition.IsMutating"/> - so the agent can only ever look things up.
+        /// Declared before <see cref="ToolDefinitions"/> since that field's initializer reads it.
+        /// </summary>
+        private static readonly HashSet<string> MutatingToolNames = new(StringComparer.Ordinal)
+        {
+            "create_follow_up_reminder",
+            "update_appointment_status",
+            "cancel_appointments_in_range",
+            "reschedule_appointments_in_range",
+            "update_appointment_status_by_patient_name",
+            "reschedule_today_appointments",
+            "create_prescription_template",
+            "delete_prescription_template",
+            "bulk_update_today_appointments_status",
+        };
+
+        /// <summary>
+        /// The advertised tool catalogue. Built once; every name here must have a matching
+        /// arm in the CallToolAsync switch, which <see cref="KnownTools"/> enforces at dispatch.
+        /// </summary>
+        private static readonly List<McpToolDefinition> ToolDefinitions = BuildToolDefinitions();
+
+        private static readonly HashSet<string> KnownTools =
+            new(ToolDefinitions.Select(t => t.Name), StringComparer.Ordinal);
+
+        public List<McpToolDefinition> GetAvailableTools() => ToolDefinitions;
+
+        private static List<McpToolDefinition> BuildToolDefinitions()
+        {
+            var definitions = BuildToolDefinitionsCore();
+            foreach (var def in definitions)
+            {
+                def.IsMutating = MutatingToolNames.Contains(def.Name);
+            }
+            return definitions;
+        }
+
+        private static List<McpToolDefinition> BuildToolDefinitionsCore()
         {
             return new List<McpToolDefinition>
             {
@@ -99,7 +194,7 @@ namespace SCMS.Domain.Features.Mcp
                 new()
                 {
                     Name = "get_unread_notifications",
-                    Description = "Retrieve unread system alerts, expiring batches, and inventory notifications.",
+                    Description = "Retrieve the 10 most recent system alerts, expiring batches, and inventory notifications. Note: read/unread state is not tracked, so this returns the latest notifications regardless of whether they have been seen.",
                     InputSchema = SchemaGenerator.FromClass<EmptyInput>()
                 },
                 new()
@@ -165,10 +260,20 @@ namespace SCMS.Domain.Features.Mcp
             };
         }
 
+        private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
+
         public async Task<Result<McpToolCallResponse>> CallToolAsync(McpToolCallRequest request)
         {
             try
             {
+                if (!KnownTools.Contains(request.Name))
+                {
+                    _logger?.LogWarning("MCP tool call rejected: unknown tool '{ToolName}'.", request.Name);
+                    return Result<McpToolCallResponse>.Failure($"Unknown tool '{request.Name}'. Call GET /api/mcp/tools for the list of available tools.");
+                }
+
+                _logger?.LogInformation("MCP tool '{ToolName}' invoked.", request.Name);
+
                 object? data = request.Name switch
                 {
                     "get_dashboard_summary" => await GetDashboardSummaryAsync(request.Arguments),
@@ -190,14 +295,19 @@ namespace SCMS.Domain.Features.Mcp
                     "reschedule_today_appointments" => await RescheduleTodayAppointmentsAsync(request.Arguments),
                     "get_prescription_templates" => await GetPrescriptionTemplatesAsync(request.Arguments),
                     "create_prescription_template" => await CreatePrescriptionTemplateAsync(request.Arguments),
+                    "delete_prescription_template" => await DeletePrescriptionTemplateAsync(request.Arguments),
                     "bulk_update_today_appointments_status" => await BulkUpdateTodayAppointmentsStatusAsync(request.Arguments),
                     "get_patient_kyp_brief" => await GetPatientKypBriefAsync(request.Arguments),
                     _ => null
                 };
 
-                if (data == null)
+                // A handler returning null means "nothing to report", not "tool missing".
+                data ??= new { message = "No data available." };
+
+                var isError = data is ToolError;
+                if (isError)
                 {
-                    return Result<McpToolCallResponse>.Failure($"Tool '{request.Name}' is not implemented or failed to run.");
+                    _logger?.LogInformation("MCP tool '{ToolName}' returned an error: {Message}", request.Name, ((ToolError)data).Message);
                 }
 
                 var response = new McpToolCallResponse
@@ -207,16 +317,17 @@ namespace SCMS.Domain.Features.Mcp
                         new()
                         {
                             Type = "text",
-                            Text = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true })
+                            Text = JsonSerializer.Serialize(data, SerializerOptions)
                         }
                     },
-                    IsError = false
+                    IsError = isError
                 };
 
                 return Result<McpToolCallResponse>.Success(response);
             }
             catch (Exception ex)
             {
+                _logger?.LogError(ex, "MCP tool '{ToolName}' threw an unhandled exception.", request.Name);
                 return Result<McpToolCallResponse>.Failure($"Error executing tool {request.Name}: {ex.Message}");
             }
         }
@@ -232,7 +343,7 @@ namespace SCMS.Domain.Features.Mcp
             var result = await _dashboardService.GetDoctorDashboardAsync(period);
             if (result.IsFailure || result.Data == null)
             {
-                return new { error = "Unable to retrieve dashboard summary." };
+                return Fail("Unable to retrieve dashboard summary.");
             }
 
             var d = result.Data;
@@ -268,8 +379,7 @@ namespace SCMS.Domain.Features.Mcp
 
         private async Task<object> GetTodayAppointmentsAsync()
         {
-            var today = DateTime.UtcNow.Date;
-            var tomorrow = today.AddDays(1);
+            var (today, tomorrow) = ClinicClock.TodayBoundsUtc();
 
             var appointments = await _context.TblAppointments
                 .Include(a => a.Patient)
@@ -283,7 +393,7 @@ namespace SCMS.Domain.Features.Mcp
                 code = a.AppointmentCode,
                 patientId = a.PatientId,
                 patientName = a.Patient?.Name ?? "Unknown",
-                time = a.Datetime.ToString("hh:mm tt"),
+                time = ClinicTime(a.Datetime),
                 status = a.Status,
                 notes = a.Notes,
                 token = idx + 1
@@ -292,8 +402,7 @@ namespace SCMS.Domain.Features.Mcp
 
         private async Task<object> GetWaitingQueueAsync()
         {
-            var today = DateTime.UtcNow.Date;
-            var tomorrow = today.AddDays(1);
+            var (today, tomorrow) = ClinicClock.TodayBoundsUtc();
 
             var todayAppointments = await _context.TblAppointments
                 .Include(a => a.Patient)
@@ -323,8 +432,7 @@ namespace SCMS.Domain.Features.Mcp
 
         private async Task<object?> GetNextPatientAsync()
         {
-            var today = DateTime.UtcNow.Date;
-            var tomorrow = today.AddDays(1);
+            var (today, tomorrow) = ClinicClock.TodayBoundsUtc();
 
             var todayAppointments = await _context.TblAppointments
                 .Include(a => a.Patient)
@@ -369,13 +477,13 @@ namespace SCMS.Domain.Features.Mcp
         {
             if (arguments == null || !arguments.TryGetValue("patientId", out var idObj) || !int.TryParse(idObj.ToString(), out var patientId))
             {
-                return new { error = "Invalid or missing patientId." };
+                return Fail("Invalid or missing patientId.");
             }
 
             var patient = await _context.TblPatients
                 .FirstOrDefaultAsync(p => p.PatientId == patientId && p.DeleteFlag != true);
 
-            if (patient == null) return new { error = "Patient not found." };
+            if (patient == null) return Fail("Patient not found.");
 
             var addressMeta = ParsePatientAddress(patient.Address);
             string allergies = string.IsNullOrWhiteSpace(addressMeta.Allergies) ? "No known allergies" : addressMeta.Allergies;
@@ -386,7 +494,7 @@ namespace SCMS.Domain.Features.Mcp
                 patientId = patient.PatientId,
                 name = patient.Name,
                 gender = patient.Gender,
-                dob = patient.DateOfBirth?.ToString(DateFormat) ?? "Unknown",
+                dob = patient.DateOfBirth.HasValue ? CalendarDate(patient.DateOfBirth.Value) : "Unknown",
                 age = GetAge(patient.DateOfBirth),
                 bloodType = patient.BloodType ?? "Unknown",
                 mobileNo = patient.MobileNo,
@@ -400,30 +508,37 @@ namespace SCMS.Domain.Features.Mcp
         {
             if (arguments == null || !arguments.TryGetValue("patientId", out var idObj) || !int.TryParse(idObj.ToString(), out var patientId))
             {
-                return new { error = "Invalid or missing patientId." };
+                return Fail("Invalid or missing patientId.");
             }
 
             var appointments = await _context.TblAppointments
                 .Where(a => a.PatientId == patientId)
                 .OrderByDescending(a => a.Datetime)
-                .Take(10)
+                .Take(VisitHistoryLimit)
                 .ToListAsync();
 
-            return appointments.Select(a => new
+            return new
             {
-                appointmentId = a.Id,
-                date = a.Datetime.ToString(DateFormat),
-                time = a.Datetime.ToString("hh:mm tt"),
-                status = a.Status,
-                reason = a.Notes ?? "Consultation"
-            }).ToList();
+                // The model must know this list is capped, or it will report it as the complete history.
+                showing = appointments.Count,
+                limit = VisitHistoryLimit,
+                truncated = appointments.Count == VisitHistoryLimit,
+                visits = appointments.Select(a => new
+                {
+                    appointmentId = a.Id,
+                    date = ClinicDate(a.Datetime),
+                    time = ClinicTime(a.Datetime),
+                    status = a.Status,
+                    reason = a.Notes ?? "Consultation"
+                }).ToList()
+            };
         }
 
         private async Task<object> GetPatientPrescriptionHistoryAsync(Dictionary<string, object>? arguments)
         {
             if (arguments == null || !arguments.TryGetValue("patientId", out var idObj) || !int.TryParse(idObj.ToString(), out var patientId))
             {
-                return new { error = "Invalid or missing patientId." };
+                return Fail("Invalid or missing patientId.");
             }
 
             var prescriptions = await _context.TblPrescriptions
@@ -431,19 +546,19 @@ namespace SCMS.Domain.Features.Mcp
                 .ThenInclude(pi => pi.Medicine)
                 .Where(p => p.PatientId == patientId && p.DeleteFlag != true)
                 .OrderByDescending(p => p.CreatedAt)
-                .Take(5)
+                .Take(PrescriptionHistoryLimit)
                 .ToListAsync();
 
             return prescriptions.Select(p => new
             {
                 prescriptionId = p.Id,
-                date = p.CreatedAt?.ToString(DateFormat) ?? "Unknown",
+                date = p.CreatedAt.HasValue ? ClinicDate(p.CreatedAt.Value) : "Unknown",
                 notes = p.Notes,
                 items = p.TblPrescriptionItems
                     .Where(pi => pi.DeleteFlag != true)
                     .Select(pi => new
                     {
-                        medicineName = pi.MedicineBatch?.Med?.Name ?? "Unknown Medicine",
+                        medicineName = pi.Medicine?.Name ?? "Unknown Medicine",
                         dosage = $"{pi.Dosage} for {pi.Days} days. Instruction: {pi.Instruction}",
                         quantity = pi.Quantity
                     }).ToList()
@@ -454,11 +569,11 @@ namespace SCMS.Domain.Features.Mcp
         {
             if (arguments == null || !arguments.TryGetValue("name", out var nameObj) || string.IsNullOrWhiteSpace(nameObj.ToString()))
             {
-                return new { error = "Invalid or missing medicine name." };
+                return Fail("Invalid or missing medicine name.");
             }
 
             var query = nameObj.ToString()!.ToLower().Trim();
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var today = ClinicClock.TodayDateOnly;
 
             var medicines = await _context.TblMedicines
                 .Include(m => m.Category)
@@ -487,7 +602,7 @@ namespace SCMS.Domain.Features.Mcp
                     {
                         batchNo = b.BatchNo,
                         quantity = b.Quantity,
-                        expiryDate = b.ExpiryDate.ToString(DateFormat),
+                        expiryDate = CalendarDate(b.ExpiryDate),
                         supplier = b.SupplierName ?? "Unknown"
                     }).ToList()
                 };
@@ -496,7 +611,7 @@ namespace SCMS.Domain.Features.Mcp
 
         private async Task<object> GetLowStockMedicinesAsync()
         {
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var today = ClinicClock.TodayDateOnly;
 
             var medicines = await _context.TblMedicines
                 .Include(m => m.TblMedicineBatches)
@@ -511,14 +626,14 @@ namespace SCMS.Domain.Features.Mcp
                     .Where(b => b.DeleteFlag != true && b.Status == "active" && b.ExpiryDate > today)
                     .Sum(b => b.Quantity);
 
-                if (totalStock < 20)
+                if (totalStock < LowStockThreshold)
                 {
                     result.Add(new
                     {
                         medicineId = m.MedicineId,
                         name = m.Name,
                         totalStock,
-                        threshold = 20
+                        threshold = LowStockThreshold
                     });
                 }
             }
@@ -528,13 +643,13 @@ namespace SCMS.Domain.Features.Mcp
 
         private async Task<object> GetExpiringBatchesAsync(Dictionary<string, object>? arguments)
         {
-            int days = 30;
+            int days = DefaultExpiryWindowDays;
             if (arguments != null && arguments.TryGetValue("days", out var daysObj) && daysObj != null && int.TryParse(daysObj.ToString(), out var parsedDays))
             {
                 days = parsedDays;
             }
 
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var today = ClinicClock.TodayDateOnly;
             var targetDate = today.AddDays(days);
 
             var batches = await _context.TblMedicineBatches
@@ -549,8 +664,8 @@ namespace SCMS.Domain.Features.Mcp
                 batchNo = b.BatchNo,
                 medicineName = b.Med?.Name ?? "Unknown",
                 quantity = b.Quantity,
-                expiryDate = b.ExpiryDate.ToString(DateFormat),
-                daysRemaining = (b.ExpiryDate.ToDateTime(TimeOnly.MinValue) - DateTime.UtcNow).Days
+                expiryDate = CalendarDate(b.ExpiryDate),
+                daysRemaining = b.ExpiryDate.DayNumber - ClinicClock.TodayDateOnly.DayNumber
             }).ToList();
         }
 
@@ -561,13 +676,13 @@ namespace SCMS.Domain.Features.Mcp
                 !arguments.TryGetValue("dueInDays", out var dueObj) || !int.TryParse(dueObj.ToString(), out var dueInDays) ||
                 !arguments.TryGetValue("recommendation", out var recObj) || string.IsNullOrWhiteSpace(recObj.ToString()))
             {
-                return new { error = "Invalid or missing arguments. Required: patientId (int), dueInDays (int), recommendation (string)." };
+                return Fail("Invalid or missing arguments. Required: patientId (int), dueInDays (int), recommendation (string).");
             }
 
             var patientExists = await _context.TblPatients
                 .AnyAsync(p => p.PatientId == patientId && p.DeleteFlag != true);
 
-            if (!patientExists) return new { error = "Patient not found." };
+            if (!patientExists) return Fail("Patient not found.");
 
             var dueAt = DateTime.UtcNow.AddDays(dueInDays);
 
@@ -590,7 +705,7 @@ namespace SCMS.Domain.Features.Mcp
                 success = true,
                 message = "Follow-up reminder created successfully.",
                 followUpId = followUp.Id,
-                dueAt = dueAt.ToString(DateTimeFormat),
+                dueAt = ClinicDateTime(dueAt),
                 recommendation = followUp.Recommendation
             };
         }
@@ -600,7 +715,7 @@ namespace SCMS.Domain.Features.Mcp
             var notifications = await _context.TblNotifications
                 .Where(n => n.DeleteFlag != true)
                 .OrderByDescending(n => n.CreatedAt)
-                .Take(10)
+                .Take(NotificationLimit)
                 .ToListAsync();
 
             return notifications.Select(n => new
@@ -608,7 +723,7 @@ namespace SCMS.Domain.Features.Mcp
                 notificationId = n.Id,
                 title = n.Title,
                 description = n.Description,
-                createdAt = n.CreatedAt?.ToString(DateTimeFormat) ?? "Unknown"
+                createdAt = n.CreatedAt.HasValue ? ClinicDateTime(n.CreatedAt.Value) : "Unknown"
             }).ToList();
         }
 
@@ -618,14 +733,13 @@ namespace SCMS.Domain.Features.Mcp
                 !arguments.TryGetValue("appointmentId", out var apptIdObj) || !int.TryParse(apptIdObj.ToString(), out var appointmentId) ||
                 !arguments.TryGetValue("status", out var statusObj) || string.IsNullOrWhiteSpace(statusObj.ToString()))
             {
-                return new { error = "Invalid or missing arguments. Required: appointmentId (int), status (string)." };
+                return Fail("Invalid or missing arguments. Required: appointmentId (int), status (string).");
             }
 
             var status = statusObj.ToString()!.ToLower().Trim();
-            var validStatuses = new[] { "pending", "confirmed", "cancelled", "completed" };
-            if (!validStatuses.Contains(status))
+            if (!ValidAppointmentStatuses.Contains(status))
             {
-                return new { error = $"Invalid status '{status}'. Valid statuses are: pending, confirmed, cancelled, completed." };
+                return Fail($"Invalid status '{status}'. Valid statuses are: {string.Join(", ", ValidAppointmentStatuses)}.");
             }
 
             var appointment = await _context.TblAppointments
@@ -634,7 +748,7 @@ namespace SCMS.Domain.Features.Mcp
 
             if (appointment == null)
             {
-                return new { error = $"Appointment with ID {appointmentId} not found." };
+                return Fail($"Appointment with ID {appointmentId} not found.");
             }
 
             var oldStatus = appointment.Status;
@@ -654,7 +768,7 @@ namespace SCMS.Domain.Features.Mcp
                 message = $"Appointment status updated from '{oldStatus}' to '{status}' successfully.",
                 appointmentId = appointment.Id,
                 patientName = appointment.Patient?.Name ?? "Unknown",
-                time = appointment.Datetime.ToString(DateTimeFormat),
+                time = ClinicDateTime(appointment.Datetime),
                 newStatus = appointment.Status,
                 notes = appointment.Notes
             };
@@ -666,7 +780,7 @@ namespace SCMS.Domain.Features.Mcp
                 !arguments.TryGetValue("startTime", out var startObj) ||
                 !arguments.TryGetValue("endTime", out var endObj))
             {
-                return new { error = "Invalid or missing arguments. Required: startTime (string), endTime (string)." };
+                return Fail("Invalid or missing arguments. Required: startTime (string), endTime (string).");
             }
 
             DateTime startTime, endTime;
@@ -677,12 +791,12 @@ namespace SCMS.Domain.Features.Mcp
             }
             catch (Exception ex)
             {
-                return new { error = ex.Message };
+                return Fail(ex.Message);
             }
 
             if (startTime >= endTime)
             {
-                return new { error = "startTime must be earlier than endTime." };
+                return Fail("startTime must be earlier than endTime.");
             }
 
             var appointments = await _context.TblAppointments
@@ -695,9 +809,9 @@ namespace SCMS.Domain.Features.Mcp
                 return new { success = true, message = "No active appointments found in the specified time range.", count = 0 };
             }
 
-            if (appointments.Count > 100)
+            if (appointments.Count > BulkMutationLimit)
             {
-                return new { error = $"Operation exceeds maximum safety limit of 100 appointments (matched {appointments.Count}). Please narrow your time window." };
+                return Fail($"Operation exceeds the maximum safety limit of {BulkMutationLimit} appointments (matched {appointments.Count}). Please narrow your time window.");
             }
 
             string reason = "Bulk cancelled via AI Assistant";
@@ -718,7 +832,7 @@ namespace SCMS.Domain.Features.Mcp
                     {
                         UserId = appt.Patient.UserId,
                         Title = "Appointment Cancelled",
-                        Description = $"Your appointment (Code: {appt.AppointmentCode}) scheduled for {appt.Datetime:f} has been cancelled. Reason: {reason}",
+                        Description = $"Your appointment (Code: {appt.AppointmentCode}) scheduled for {ClinicDateTime(appt.Datetime)} has been cancelled. Reason: {reason}",
                         ActionRoute = $"/appointments/{appt.Id}",
                         CreatedAt = DateTime.UtcNow,
                         DeleteFlag = false
@@ -731,13 +845,13 @@ namespace SCMS.Domain.Features.Mcp
             return new
             {
                 success = true,
-                message = $"Successfully cancelled {appointments.Count} appointment(s) in the range {startTime.ToString(DateTimeFormat)} to {endTime.ToString(DateTimeFormat)}.",
+                message = $"Successfully cancelled {appointments.Count} appointment(s) in the range {ClinicDateTime(startTime)} to {ClinicDateTime(endTime)}.",
                 count = appointments.Count,
                 cancelledAppointments = appointments.Select(a => new
                 {
                     appointmentId = a.Id,
                     patientName = a.Patient?.Name ?? "Unknown",
-                    time = a.Datetime.ToString("hh:mm tt"),
+                    time = ClinicTime(a.Datetime),
                     notes = a.Notes
                 }).ToList()
             };
@@ -750,7 +864,7 @@ namespace SCMS.Domain.Features.Mcp
                 !arguments.TryGetValue("sourceEndTime", out var sEndObj) ||
                 !arguments.TryGetValue("targetStartTime", out var tStartObj))
             {
-                return new { error = "Invalid or missing arguments. Required: sourceStartTime (string), sourceEndTime (string), targetStartTime (string)." };
+                return Fail("Invalid or missing arguments. Required: sourceStartTime (string), sourceEndTime (string), targetStartTime (string).");
             }
 
             DateTime sourceStartTime, sourceEndTime, targetStartTime;
@@ -762,12 +876,17 @@ namespace SCMS.Domain.Features.Mcp
             }
             catch (Exception ex)
             {
-                return new { error = ex.Message };
+                return Fail(ex.Message);
             }
 
             if (sourceStartTime >= sourceEndTime)
             {
-                return new { error = "sourceStartTime must be earlier than sourceEndTime." };
+                return Fail("sourceStartTime must be earlier than sourceEndTime.");
+            }
+
+            if (targetStartTime < DateTime.UtcNow)
+            {
+                return Fail($"Target start time {ClinicDateTime(targetStartTime)} is in the past. Appointments cannot be rescheduled to a time that has already passed.");
             }
 
             var appointments = await _context.TblAppointments
@@ -781,9 +900,9 @@ namespace SCMS.Domain.Features.Mcp
                 return new { success = true, message = "No active appointments found in the source time range to reschedule.", count = 0 };
             }
 
-            if (appointments.Count > 100)
+            if (appointments.Count > BulkMutationLimit)
             {
-                return new { error = $"Operation exceeds maximum safety limit of 100 appointments (matched {appointments.Count}). Please narrow your time window." };
+                return Fail($"Operation exceeds the maximum safety limit of {BulkMutationLimit} appointments (matched {appointments.Count}). Please narrow your time window.");
             }
 
             // Calculate the exact offset shift (difference between targetStartTime and sourceStartTime)
@@ -800,8 +919,8 @@ namespace SCMS.Domain.Features.Mcp
                 
                 var originalNotes = CleanRescheduledNotes(appt.Notes);
                 appt.Notes = string.IsNullOrWhiteSpace(originalNotes) 
-                    ? $"Rescheduled from {oldTime.ToString("hh:mm tt", System.Globalization.CultureInfo.InvariantCulture)}" 
-                    : $"{originalNotes} | Rescheduled from {oldTime.ToString("hh:mm tt", System.Globalization.CultureInfo.InvariantCulture)}";
+                    ? $"Rescheduled from {ClinicTime(oldTime)}" 
+                    : $"{originalNotes} | Rescheduled from {ClinicTime(oldTime)}";
 
                 if (appt.Patient?.UserId != null)
                 {
@@ -809,7 +928,7 @@ namespace SCMS.Domain.Features.Mcp
                     {
                         UserId = appt.Patient.UserId,
                         Title = "Appointment Rescheduled",
-                        Description = $"Your appointment (Code: {appt.AppointmentCode}) has been rescheduled to {newTime:f}.",
+                        Description = $"Your appointment (Code: {appt.AppointmentCode}) has been rescheduled to {ClinicDateTime(newTime)}.",
                         ActionRoute = $"/appointments/{appt.Id}",
                         CreatedAt = DateTime.UtcNow,
                         DeleteFlag = false
@@ -820,8 +939,8 @@ namespace SCMS.Domain.Features.Mcp
                 {
                     appointmentId = appt.Id,
                     patientName = appt.Patient?.Name ?? "Unknown",
-                    oldTime = oldTime.ToString(DateTimeFormat, System.Globalization.CultureInfo.InvariantCulture),
-                    newTime = newTime.ToString(DateTimeFormat, System.Globalization.CultureInfo.InvariantCulture)
+                    oldTime = ClinicDateTime(oldTime),
+                    newTime = ClinicDateTime(newTime)
                 });
             }
 
@@ -839,107 +958,152 @@ namespace SCMS.Domain.Features.Mcp
         private static int GetAge(DateOnly? dateOfBirth)
         {
             if (dateOfBirth == null) return 0;
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var today = ClinicClock.TodayDateOnly;
             var dob = dateOfBirth.Value;
             var age = today.Year - dob.Year;
             if (dob > today.AddYears(-age)) age--;
             return age;
         }
 
+        /// <summary>
+        /// Accepted clinic-local input shapes, most specific first. Bare dates land at midnight.
+        /// </summary>
+        private static readonly string[] AcceptedDateTimeFormats =
+        {
+            "dd/MM/yyyy HH:mm", "dd/MM/yyyy h:mm tt", "dd/MM/yyyy",
+            "d/M/yyyy HH:mm",   "d/M/yyyy h:mm tt",   "d/M/yyyy",
+            "dd-MM-yyyy HH:mm", "dd-MM-yyyy h:mm tt", "dd-MM-yyyy",
+            "d-M-yyyy HH:mm",   "d-M-yyyy h:mm tt",   "d-M-yyyy",
+            "yyyy-MM-dd HH:mm", "yyyy-MM-dd h:mm tt", "yyyy-MM-dd",
+            "yyyy/MM/dd HH:mm", "yyyy/MM/dd h:mm tt", "yyyy/MM/dd"
+        };
+
+        private static readonly string[] AcceptedTimeOnlyFormats =
+        {
+            "HH:mm", "H:mm", "HH:mm:ss", "h:mm tt", "h:mmtt", "htt", "h tt"
+        };
+
+        /// <summary>
+        /// Parse a natural-language date/time the assistant produced into the UTC instant to
+        /// store or query with. Input is always interpreted as clinic-local wall-clock time:
+        /// "08:30" means half past eight at the clinic, not 08:30 UTC.
+        /// </summary>
         private static DateTime ParseDateTimeUtc(string input)
         {
-            var trimmed = input.Trim().ToLowerInvariant();
-            
-            var todayStr = DateTime.UtcNow.ToString(DateFormat);
-            var tomorrowStr = DateTime.UtcNow.AddDays(1).ToString(DateFormat);
-
-            if (trimmed.Contains("today"))
+            if (string.IsNullOrWhiteSpace(input))
             {
-                trimmed = trimmed.Replace("today", todayStr).Trim();
-            }
-            else if (trimmed.Contains("tomorrow"))
-            {
-                trimmed = trimmed.Replace("tomorrow", tomorrowStr).Trim();
+                throw new FormatException("A date or time value is required.");
             }
 
-            // Clean up common joining words
-            trimmed = trimmed.Replace(" at ", " ");
+            var text = input.Trim();
 
-            // Check if it has a date separator or month name to see if it specifies a full date
-            bool hasDateSeparator = trimmed.Contains('-') || trimmed.Contains('/') || trimmed.Contains('.');
-            bool hasMonthName = trimmed.Contains("jan") ||
-                                trimmed.Contains("feb") ||
-                                trimmed.Contains("mar") ||
-                                trimmed.Contains("apr") ||
-                                trimmed.Contains("may") ||
-                                trimmed.Contains("jun") ||
-                                trimmed.Contains("jul") ||
-                                trimmed.Contains("aug") ||
-                                trimmed.Contains("sep") ||
-                                trimmed.Contains("oct") ||
-                                trimmed.Contains("nov") ||
-                                trimmed.Contains("dec");
-
-            if (!hasDateSeparator && !hasMonthName)
+            // ISO-8601 with an explicit offset already pins an exact instant - honour it as given.
+            if (DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out var offsetValue)
+                && HasExplicitOffset(text))
             {
-                // Time-only string (e.g. "08:30", "8:30 AM", "14:00", "2:00 PM")
-                // Parse it as a time to extract hours, minutes, and seconds
-                if (DateTime.TryParse(trimmed, out var parsedTime))
-                {
-                    // Construct a UTC DateTime with today's date and the parsed time
-                    var today = DateTime.UtcNow.Date;
-                    return new DateTime(
-                        today.Year, 
-                        today.Month, 
-                        today.Day, 
-                        parsedTime.Hour, 
-                        parsedTime.Minute, 
-                        parsedTime.Second, 
-                        DateTimeKind.Utc
-                    );
-                }
+                return offsetValue.UtcDateTime;
             }
 
-            string[] formats = { 
-                DateFormat, 
-                "d-m-yyyy".Replace("m", "\x4d"), 
-                "dd/mm/yyyy".Replace("mm", "\x4d\x4d"), 
-                "d/m/yyyy".Replace("m", "\x4d"), 
-                DateFormat + " HH:mm", 
-                DateTimeFormat, 
-                "dd/mm/yyyy HH:mm".Replace("dd/mm", "dd/\x4d\x4d"), 
-                "dd/mm/yyyy hh:mm tt".Replace("dd/mm", "dd/\x4d\x4d"),
-                "yyyy-mm-dd".Replace("mm", "\x4d\x4d"), 
-                "yyyy/mm/dd".Replace("mm", "\x4d\x4d"), 
-                "yyyy-mm-dd HH:mm".Replace("yyyy-mm", "yyyy-\x4d\x4d"), 
-                "yyyy-mm-dd hh:mm tt".Replace("yyyy-mm", "yyyy-\x4d\x4d")
-            };
-            if (DateTime.TryParseExact(trimmed, formats, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var exactDt))
+            var normalised = text.ToLowerInvariant();
+
+            // Resolve relative day words against the clinic's calendar, not the server's.
+            var clinicToday = ClinicClock.Today;
+            var relativeDay = clinicToday;
+            var sawRelativeWord = false;
+
+            foreach (var (word, dayOffset) in RelativeDayWords)
             {
-                return exactDt.Kind == DateTimeKind.Local ? exactDt.ToUniversalTime() : exactDt;
+                if (!ContainsWord(normalised, word)) continue;
+
+                relativeDay = clinicToday.AddDays(dayOffset);
+                normalised = RemoveWord(normalised, word);
+                sawRelativeWord = true;
+                break;
             }
 
-            // Otherwise, it's a full date string, parse it using standard TryParse
-            if (DateTime.TryParse(trimmed, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
+            // Strip the joining words the model tends to emit ("today at 10:00", "on 24/06/2026").
+            normalised = RemoveWord(normalised, "at");
+            normalised = RemoveWord(normalised, "on");
+            normalised = CollapseWhitespace(normalised);
+
+            // Time-only remainder ("10:00", "2 pm"): attach it to the relative day, or today.
+            if (TryParseTimeOnly(normalised, out var timeOfDay))
             {
-                if (dt.Kind == DateTimeKind.Local)
-                {
-                    return dt.ToUniversalTime();
-                }
-                else if (dt.Kind == DateTimeKind.Unspecified)
-                {
-                    return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
-                }
-                return dt;
+                return ClinicClock.ToUtc(relativeDay.Date.Add(timeOfDay));
             }
 
-            // Fallback: try general parsing style
-            if (DateTime.TryParse(trimmed, null, System.Globalization.DateTimeStyles.None, out var dtFallback))
+            // A relative word with nothing left over means midnight on that day.
+            if (sawRelativeWord && normalised.Length == 0)
             {
-                return dtFallback.Kind == DateTimeKind.Local ? dtFallback.ToUniversalTime() : dtFallback;
+                return ClinicClock.ToUtc(relativeDay.Date);
             }
 
-            throw new FormatException($"Invalid date/time format: {input}");
+            if (DateTime.TryParseExact(normalised, AcceptedDateTimeFormats, CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var exact))
+            {
+                return ClinicClock.ToUtc(exact);
+            }
+
+            // Last resort: let the framework try, but still treat the result as clinic-local.
+            if (DateTime.TryParse(normalised, CultureInfo.InvariantCulture, DateTimeStyles.None, out var loose))
+            {
+                return ClinicClock.ToUtc(loose);
+            }
+
+            throw new FormatException(
+                $"Could not understand the date/time '{input}'. Use a time like '08:30', a relative form like " +
+                "'tomorrow at 14:00', or a full date in dd/MM/yyyy format.");
+        }
+
+        private static readonly (string Word, int DayOffset)[] RelativeDayWords =
+        {
+            ("today", 0),
+            ("tonight", 0),
+            ("tomorrow", 1),
+            ("yesterday", -1)
+        };
+
+        private static bool TryParseTimeOnly(string value, out TimeSpan timeOfDay)
+        {
+            timeOfDay = TimeSpan.Zero;
+            if (string.IsNullOrWhiteSpace(value)) return false;
+
+            if (DateTime.TryParseExact(value, AcceptedTimeOnlyFormats, CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var parsed))
+            {
+                timeOfDay = parsed.TimeOfDay;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool HasExplicitOffset(string text)
+        {
+            if (text.EndsWith("Z", StringComparison.OrdinalIgnoreCase)) return true;
+
+            // Look for a +HH:mm / -HH:mm suffix, skipping the date's own separators.
+            var timeSeparator = text.IndexOf('T');
+            if (timeSeparator < 0) return false;
+
+            var tail = text[timeSeparator..];
+            return tail.Contains('+') || tail.Contains('-');
+        }
+
+        /// <summary>Whole-word containment, so "march" is not mistaken for a relative day and "at" does not match "date".</summary>
+        private static bool ContainsWord(string haystack, string word)
+        {
+            return Regex.IsMatch(haystack, $@"\b{Regex.Escape(word)}\b");
+        }
+
+        private static string RemoveWord(string haystack, string word)
+        {
+            return Regex.Replace(haystack, $@"\b{Regex.Escape(word)}\b", " ");
+        }
+
+        private static string CollapseWhitespace(string value)
+        {
+            return Regex.Replace(value, @"\s+", " ").Trim();
         }
 
         private async Task<object> UpdateAppointmentStatusByPatientNameAsync(Dictionary<string, object>? arguments)
@@ -948,15 +1112,14 @@ namespace SCMS.Domain.Features.Mcp
                 !arguments.TryGetValue("patientName", out var nameObj) || string.IsNullOrWhiteSpace(nameObj.ToString()) ||
                 !arguments.TryGetValue("status", out var statusObj) || string.IsNullOrWhiteSpace(statusObj.ToString()))
             {
-                return new { error = "Invalid or missing arguments. Required: patientName (string), status (string)." };
+                return Fail("Invalid or missing arguments. Required: patientName (string), status (string).");
             }
 
             var patientName = nameObj.ToString()!.ToLower().Trim();
             var status = statusObj.ToString()!.ToLower().Trim();
-            var validStatuses = new[] { "pending", "confirmed", "cancelled", "completed" };
-            if (!validStatuses.Contains(status))
+            if (!ValidAppointmentStatuses.Contains(status))
             {
-                return new { error = $"Invalid status '{status}'. Valid statuses are: pending, confirmed, cancelled, completed." };
+                return Fail($"Invalid status '{status}'. Valid statuses are: {string.Join(", ", ValidAppointmentStatuses)}.");
             }
 
             // Find matching patients
@@ -966,12 +1129,11 @@ namespace SCMS.Domain.Features.Mcp
 
             if (patients.Count == 0)
             {
-                return new { error = $"No patients found matching the name '{nameObj}'." };
+                return Fail($"No patients found matching the name '{nameObj}'.");
             }
 
             var patientIds = patients.Select(p => p.PatientId).ToList();
-            var today = DateTime.UtcNow.Date;
-            var tomorrow = today.AddDays(1);
+            var (today, tomorrow) = ClinicClock.TodayBoundsUtc();
 
             // Fetch active appointments
             var appointments = await _context.TblAppointments
@@ -982,7 +1144,7 @@ namespace SCMS.Domain.Features.Mcp
 
             if (appointments.Count == 0)
             {
-                return new { error = $"No appointments found for patient(s) matching '{nameObj}'." };
+                return Fail($"No appointments found for patient(s) matching '{nameObj}'.");
             }
 
             // Filter for today's active/pending appointments first
@@ -1007,7 +1169,7 @@ namespace SCMS.Domain.Features.Mcp
                     {
                         appointmentId = a.Id,
                         patientName = a.Patient?.Name ?? "Unknown",
-                        time = a.Datetime.ToString("hh:mm tt"),
+                        time = ClinicTime(a.Datetime),
                         status = a.Status
                     }).ToList()
                 };
@@ -1034,15 +1196,20 @@ namespace SCMS.Domain.Features.Mcp
                         {
                             appointmentId = a.Id,
                             patientName = a.Patient?.Name ?? "Unknown",
-                            time = a.Datetime.ToString(DateTimeFormat),
+                            time = ClinicDateTime(a.Datetime),
                             status = a.Status
                         }).ToList()
                     };
                 }
                 else
                 {
-                    // Fallback to the absolute latest appointment
-                    targetAppointment = appointments.OrderByDescending(a => a.Datetime).First();
+                    // Every appointment for this patient is already cancelled or completed.
+                    // Silently rewriting a closed visit would be worse than doing nothing.
+                    var latest = appointments.OrderByDescending(a => a.Datetime).First();
+                    return Fail(
+                        $"Patient '{latest.Patient?.Name ?? nameObj.ToString()}' has no active (pending or confirmed) appointment to update. " +
+                        $"Their most recent appointment on {ClinicClock.ToClinic(latest.Datetime).ToString(DateTimeFormat, CultureInfo.InvariantCulture)} is already '{latest.Status}'. " +
+                        "Pass an explicit appointmentId to update a closed appointment.");
                 }
             }
 
@@ -1064,7 +1231,7 @@ namespace SCMS.Domain.Features.Mcp
                 message = $"Successfully updated appointment status for patient '{targetAppointment.Patient?.Name}' from '{oldStatus}' to '{status}'.",
                 appointmentId = targetAppointment.Id,
                 patientName = targetAppointment.Patient?.Name ?? "Unknown",
-                time = targetAppointment.Datetime.ToString(DateTimeFormat),
+                time = ClinicDateTime(targetAppointment.Datetime),
                 newStatus = targetAppointment.Status,
                 notes = targetAppointment.Notes
             };
@@ -1075,7 +1242,7 @@ namespace SCMS.Domain.Features.Mcp
             if (arguments == null ||
                 !arguments.TryGetValue("targetStartTime", out var tStartObj) || string.IsNullOrWhiteSpace(tStartObj.ToString()))
             {
-                return new { error = "Invalid or missing arguments. Required: targetStartTime (string)." };
+                return Fail("Invalid or missing arguments. Required: targetStartTime (string).");
             }
 
             DateTime targetStartTime;
@@ -1085,11 +1252,16 @@ namespace SCMS.Domain.Features.Mcp
             }
             catch (Exception ex)
             {
-                return new { error = ex.Message };
+                return Fail(ex.Message);
             }
 
-            var today = targetStartTime.Date;
-            var tomorrow = today.AddDays(1);
+            // Anchor the window to the clinic-local day the target time falls in.
+            if (targetStartTime < DateTime.UtcNow)
+            {
+                return Fail($"Target start time {ClinicDateTime(targetStartTime)} is in the past. Appointments cannot be rescheduled to a time that has already passed.");
+            }
+
+            var (today, tomorrow) = ClinicClock.DayBoundsUtc(ClinicClock.ToClinic(targetStartTime));
 
             // Get all today's active appointments ordered by time
             var appointments = await _context.TblAppointments
@@ -1120,15 +1292,15 @@ namespace SCMS.Domain.Features.Mcp
                 
                 var originalNotes = CleanRescheduledNotes(appt.Notes);
                 appt.Notes = string.IsNullOrWhiteSpace(originalNotes) 
-                    ? $"Rescheduled from {oldTime.ToString("hh:mm tt", System.Globalization.CultureInfo.InvariantCulture)}" 
-                    : $"{originalNotes} | Rescheduled from {oldTime.ToString("hh:mm tt", System.Globalization.CultureInfo.InvariantCulture)}";
+                    ? $"Rescheduled from {ClinicTime(oldTime)}" 
+                    : $"{originalNotes} | Rescheduled from {ClinicTime(oldTime)}";
 
                 rescheduledDetails.Add(new
                 {
                     appointmentId = appt.Id,
                     patientName = appt.Patient?.Name ?? "Unknown",
-                    oldTime = oldTime.ToString(DateTimeFormat, System.Globalization.CultureInfo.InvariantCulture),
-                    newTime = newTime.ToString(DateTimeFormat, System.Globalization.CultureInfo.InvariantCulture)
+                    oldTime = ClinicDateTime(oldTime),
+                    newTime = ClinicDateTime(newTime)
                 });
             }
 
@@ -1137,7 +1309,7 @@ namespace SCMS.Domain.Features.Mcp
             return new
             {
                 success = true,
-                message = $"Successfully rescheduled {appointments.Count} appointment(s) today. Shifted by {offset.TotalMinutes} minutes (+{offset.TotalHours:F1} hours) to start at {targetStartTime:hh:mm tt}.",
+                message = $"Successfully rescheduled {appointments.Count} appointment(s) today. Shifted by {offset.TotalMinutes} minutes (+{offset.TotalHours:F1} hours) to start at {ClinicTime(targetStartTime)}.",
                 count = appointments.Count,
                 rescheduledAppointments = rescheduledDetails
             };
@@ -1210,13 +1382,13 @@ namespace SCMS.Domain.Features.Mcp
                 !arguments.TryGetValue("diseaseId", out var diseaseIdObj) || !int.TryParse(diseaseIdObj.ToString(), out var diseaseId) ||
                 !arguments.TryGetValue("items", out var itemsObj) || itemsObj == null)
             {
-                return new { error = "Invalid or missing arguments. Required: name (string), diseaseId (int), items (array)." };
+                return Fail("Invalid or missing arguments. Required: name (string), diseaseId (int), items (array).");
             }
 
             var diseaseExists = await _context.TblDiseases.AnyAsync(d => d.Id == diseaseId && d.DeleteFlag != true);
             if (!diseaseExists)
             {
-                return new { error = $"Disease with ID {diseaseId} not found." };
+                return Fail($"Disease with ID {diseaseId} not found.");
             }
 
             // Parse items list
@@ -1227,34 +1399,34 @@ namespace SCMS.Domain.Features.Mcp
                 var items = JsonSerializer.Deserialize<List<TemplateItemDto>>(jsonStr);
                 if (items == null || items.Count == 0)
                 {
-                    return new { error = "At least one template item is required." };
+                    return Fail("At least one template item is required.");
                 }
 
                 var medicineIds = items.Select(i => i.MedicineId).ToList();
                 if (medicineIds.Count != medicineIds.Distinct().Count())
                 {
-                    return new { error = "A prescription template cannot contain duplicate medicines." };
+                    return Fail("A prescription template cannot contain duplicate medicines.");
                 }
 
                 foreach (var item in items)
                 {
                     if (item.MedicineId <= 0)
                     {
-                        return new { error = "medicineId is required for every template item." };
+                        return Fail("medicineId is required for every template item.");
                     }
                     if (item.Quantity <= 0)
                     {
-                        return new { error = "quantity must be greater than zero." };
+                        return Fail("quantity must be greater than zero.");
                     }
                     if (item.Days <= 0)
                     {
-                        return new { error = "days must be greater than zero." };
+                        return Fail("days must be greater than zero.");
                     }
 
                     var medicineExists = await _context.TblMedicines.AnyAsync(m => m.MedicineId == item.MedicineId && m.DeleteFlag != true);
                     if (!medicineExists)
                     {
-                        return new { error = $"Medicine ID {item.MedicineId} not found." };
+                        return Fail($"Medicine ID {item.MedicineId} not found.");
                     }
 
                     itemsList.Add(new TblPrescriptionTemplateItem
@@ -1271,7 +1443,7 @@ namespace SCMS.Domain.Features.Mcp
             }
             catch (Exception ex)
             {
-                return new { error = $"Error parsing items array: {ex.Message}" };
+                return Fail($"Error parsing items array: {ex.Message}");
             }
 
             var newTemplate = new TblPrescriptionTemplate
@@ -1301,7 +1473,7 @@ namespace SCMS.Domain.Features.Mcp
         {
             if (arguments == null || !arguments.TryGetValue("templateId", out var idObj) || !int.TryParse(idObj.ToString(), out var templateId))
             {
-                return new { error = "Invalid or missing templateId." };
+                return Fail("Invalid or missing templateId.");
             }
 
             var template = await _context.TblPrescriptionTemplates
@@ -1310,7 +1482,7 @@ namespace SCMS.Domain.Features.Mcp
 
             if (template == null)
             {
-                return new { error = $"Prescription template with ID {templateId} not found." };
+                return Fail($"Prescription template with ID {templateId} not found.");
             }
 
             template.DeleteFlag = true;
@@ -1334,18 +1506,16 @@ namespace SCMS.Domain.Features.Mcp
         {
             if (arguments == null || !arguments.TryGetValue("status", out var statusObj) || string.IsNullOrWhiteSpace(statusObj.ToString()))
             {
-                return new { error = "Invalid or missing arguments. Required: status (string)." };
+                return Fail("Invalid or missing arguments. Required: status (string).");
             }
 
             var status = statusObj.ToString()!.ToLower().Trim();
-            var validStatuses = new[] { "pending", "confirmed", "cancelled", "completed" };
-            if (!validStatuses.Contains(status))
+            if (!ValidAppointmentStatuses.Contains(status))
             {
-                return new { error = $"Invalid status '{status}'. Valid statuses are: pending, confirmed, cancelled, completed." };
+                return Fail($"Invalid status '{status}'. Valid statuses are: {string.Join(", ", ValidAppointmentStatuses)}.");
             }
 
-            var today = DateTime.UtcNow.Date;
-            var tomorrow = today.AddDays(1);
+            var (today, tomorrow) = ClinicClock.TodayBoundsUtc();
 
             // Fetch all appointments for today
             var appointments = await _context.TblAppointments
@@ -1356,6 +1526,11 @@ namespace SCMS.Domain.Features.Mcp
             if (appointments.Count == 0)
             {
                 return new { success = true, message = "No appointments found scheduled for today.", count = 0 };
+            }
+
+            if (appointments.Count > BulkMutationLimit)
+            {
+                return Fail($"Operation exceeds the maximum safety limit of {BulkMutationLimit} appointments (matched {appointments.Count}). Update them in smaller batches.");
             }
 
             var updatedCount = 0;
@@ -1374,7 +1549,7 @@ namespace SCMS.Domain.Features.Mcp
                     {
                         appointmentId = appt.Id,
                         patientName = appt.Patient?.Name ?? "Unknown",
-                        time = appt.Datetime.ToString("hh:mm tt"),
+                        time = ClinicTime(appt.Datetime),
                         oldStatus = oldStatus,
                         newStatus = status
                     });
@@ -1400,7 +1575,7 @@ namespace SCMS.Domain.Features.Mcp
             if (arguments == null || 
                 (!arguments.ContainsKey("patientId") && !arguments.ContainsKey("patientName")))
             {
-                return new { error = "Invalid or missing arguments. Either patientId (int) or patientName (string) must be provided." };
+                return Fail("Invalid or missing arguments. Either patientId (int) or patientName (string) must be provided.");
             }
 
             TblPatient? patient = null;
@@ -1418,7 +1593,7 @@ namespace SCMS.Domain.Features.Mcp
 
             if (patient == null)
             {
-                return new { error = "Patient not found. Please provide a valid patientId or patientName." };
+                return Fail("Patient not found. Please provide a valid patientId or patientName.");
             }
 
             var addressMeta = ParsePatientAddress(patient.Address);
@@ -1440,29 +1615,29 @@ namespace SCMS.Domain.Features.Mcp
             }
 
             string riskLevel = "Low";
-            string riskRecommendation = "Patient has an excellent attendance record. Standard automated reminders are sufficient.";
+            string riskRecommendation = $"{cancelledVisits} of {totalVisits} appointment(s) cancelled. Standard reminders are likely sufficient.";
 
             if (adherenceRiskRate >= 30.0 || cancelledVisits >= 2)
             {
                 riskLevel = "High";
-                riskRecommendation = "⚠️ CRITICAL ADHERENCE RISK: High cancellation frequency. Receptions staff should perform direct personal call confirmation 24 hours prior to appointment.";
+                riskRecommendation = $"{cancelledVisits} of {totalVisits} appointment(s) cancelled ({Math.Round(adherenceRiskRate, 1)}%). Consider confirming by phone before the next appointment.";
             }
             else if (adherenceRiskRate > 10.0)
             {
                 riskLevel = "Medium";
-                riskRecommendation = "MODERATE ADHERENCE RISK: Prefers rescheduling. Ensure automated SMS and email reminders are sent at 48 hours and 24 hours prior.";
+                riskRecommendation = $"{cancelledVisits} of {totalVisits} appointment(s) cancelled ({Math.Round(adherenceRiskRate, 1)}%). Consider an extra reminder before the next appointment.";
             }
 
             // 2. EMR Sentinel Guard (Pillar 3)
-            string allergyWarning = "No known drug allergies. Active Sentinel Check: CLEAR.";
-            string safetyStatus = "SAFE";
+            string allergyWarning = "No drug allergies recorded for this patient.";
+            string safetyStatus = "NONE_RECORDED";
 
             if (!string.IsNullOrWhiteSpace(addressMeta.Allergies) && 
                 !addressMeta.Allergies.Contains("no known", StringComparison.OrdinalIgnoreCase) && 
                 !addressMeta.Allergies.Equals("none", StringComparison.OrdinalIgnoreCase))
             {
-                allergyWarning = $"🚨 CRITICAL ALLERGY ALERT: Patient is allergic to: {addressMeta.Allergies}. Active EMR Sentinel Guard has locked prescribing pathways for these compounds.";
-                safetyStatus = "GUARDED";
+                allergyWarning = $"ALLERGIES RECORDED: {addressMeta.Allergies}. Check every prescription against this list before issuing.";
+                safetyStatus = "ALLERGIES_RECORDED";
             }
 
             var interactionTipsList = new List<string>();
@@ -1471,20 +1646,20 @@ namespace SCMS.Domain.Features.Mcp
                 var chronicLower = addressMeta.ChronicConditions.ToLower();
                 if (chronicLower.Contains("asthma"))
                 {
-                    interactionTipsList.Add("Contraindication warning: Avoid prescribing Beta-Blockers (e.g. Propranolol, Atenolol) due to risk of severe bronchospasm in Asthma.");
+                    interactionTipsList.Add("Asthma recorded: beta-blockers (e.g. Propranolol, Atenolol) carry a bronchospasm risk. Verify against current guidance.");
                 }
                 if (chronicLower.Contains("diabetes"))
                 {
-                    interactionTipsList.Add("Clinical tip: Corticosteroids can cause hyperglycemia. Monitor blood glucose closely if prescribing steroids.");
+                    interactionTipsList.Add("Diabetes recorded: corticosteroids can raise blood glucose. Verify against current guidance.");
                 }
                 if (chronicLower.Contains("hypertension"))
                 {
-                    interactionTipsList.Add("Clinical tip: Avoid combining multiple ACE inhibitors / ARBs. Ensure potassium levels are monitored regularly.");
+                    interactionTipsList.Add("Hypertension recorded: review for duplicate ACE inhibitor / ARB therapy and potassium monitoring.");
                 }
             }
             if (interactionTipsList.Count == 0)
             {
-                interactionTipsList.Add("No active chronic drug-interaction alerts. Standard prescribing guidelines apply.");
+                interactionTipsList.Add("No reminders matched this patient's recorded conditions.");
             }
             var drugInteractionTips = string.Join(" | ", interactionTipsList);
 
@@ -1498,43 +1673,29 @@ namespace SCMS.Domain.Features.Mcp
             var unpaidCount = payments.Count(p => p.PaymentStatus == "pending" || p.PaymentStatus == "partial");
 
             string budgetSensitivity = "Low";
-            string financialBehavior = "Consistent and timely billing settlement.";
+            string financialBehavior = payments.Count == 0
+                ? "No payment records on file."
+                : $"All {payments.Count} invoice(s) settled.";
 
             if (unpaidCount > 0)
             {
                 budgetSensitivity = "High";
-                financialBehavior = $"⚠️ NOTICE: Patient has {unpaidCount} outstanding unpaid/partial invoices. Suggest generic therapeutic alternatives.";
-            }
-            else if (totalPaid > 150000)
-            {
-                budgetSensitivity = "Medium";
-                financialBehavior = "Consistently settles large invoices via digital bank transfers (KBZPay). Preferred boutique patient care tiers.";
-            }
-            else
-            {
-                if (addressMeta.ChronicConditions != null && addressMeta.ChronicConditions.ToLower().Contains("diabetes"))
-                {
-                    budgetSensitivity = "Medium";
-                    financialBehavior = "Patient is on recurring maintenance drugs. Suggest cost-effective prescription packs.";
-                }
+                financialBehavior = $"{unpaidCount} of {payments.Count} invoice(s) are unpaid or only partially paid.";
             }
 
             // 4. Anxiety and Caregiver linkages (Pillar 4)
-            string anxietyNotes = "No anxiety or needle phobias reported. Normal clinical comfort.";
-            if (!string.IsNullOrWhiteSpace(addressMeta.ChronicConditions) && addressMeta.ChronicConditions.ToLower().Contains("hypertension"))
-            {
-                anxietyNotes = "High probability of white-coat hypertension. Staff should measure vitals only after 5 minutes of resting sitting time.";
-            }
-
             int age = GetAge(patient.DateOfBirth);
-            string caregiverNotes = "Patient manages own care directly.";
+
+            // Age-banded handling reminders. These follow from the recorded date of birth only -
+            // anything beyond that (comfort, phobias, who pays) is not in the system, so it is not asserted.
+            string caregiverNotes = "No caregiver information recorded.";
             if (age >= 65)
             {
-                caregiverNotes = "Elderly care: Recommend copying communications to the primary emergency contact or caregiver listed in their profile.";
+                caregiverNotes = $"Patient is {age}. Consider copying communications to an emergency contact or caregiver.";
             }
-            else if (age < 12)
+            else if (age > 0 && age < 12)
             {
-                caregiverNotes = "Pediatric care: Communications and billing must be linked directly to the parent's registered mobile number.";
+                caregiverNotes = $"Patient is {age}. Communications and billing should be directed to a parent or guardian.";
             }
 
             // 5. Prescriptions Vitals History
@@ -1546,13 +1707,14 @@ namespace SCMS.Domain.Features.Mcp
                 .OrderBy(p => p.CreatedAt)
                 .ToListAsync();
 
-            var vitalsList = new List<object>();
+            var vitalsList = new List<VitalsSnapshot>();
             foreach (var p in prescriptions)
             {
                 var notesMeta = ParsePrescriptionNotes(p.Notes);
-                vitalsList.Add(new
+                vitalsList.Add(new VitalsSnapshot
                 {
-                    date = p.CreatedAt?.ToString(DateFormat) ?? "Unknown",
+                    RecordedAtUtc = p.CreatedAt,
+                    date = p.CreatedAt.HasValue ? ClinicDate(p.CreatedAt.Value) : "Unknown",
                     weight = p.WeightKg,
                     bp = p.BloodPressureSystolic.HasValue && p.BloodPressureDiastolic.HasValue 
                         ? $"{p.BloodPressureSystolic}/{p.BloodPressureDiastolic}" 
@@ -1563,7 +1725,11 @@ namespace SCMS.Domain.Features.Mcp
                     bmi = notesMeta.Bmi
                 });
             }
-            var lastVitals = vitalsList.OrderByDescending(v => ((dynamic)v).date).FirstOrDefault();
+
+            // Order by the underlying timestamp; the formatted date string sorts by day-of-month.
+            var lastVitals = vitalsList
+                .OrderByDescending(v => v.RecordedAtUtc ?? DateTime.MinValue)
+                .FirstOrDefault();
 
             return new
             {
@@ -1571,7 +1737,7 @@ namespace SCMS.Domain.Features.Mcp
                 name = patient.Name,
                 gender = patient.Gender,
                 age = age,
-                dob = patient.DateOfBirth?.ToString(DateFormat) ?? "Unknown",
+                dob = patient.DateOfBirth.HasValue ? CalendarDate(patient.DateOfBirth.Value) : "Unknown",
                 bloodType = patient.BloodType ?? "Unknown",
                 mobileNo = patient.MobileNo,
                 email = patient.Email,
@@ -1616,10 +1782,27 @@ namespace SCMS.Domain.Features.Mcp
                     financialBehavior = financialBehavior,
                     totalRevenuePaid = totalPaid,
                     outstandingInvoicesCount = unpaidCount,
-                    anxietyAndComfortNotes = anxietyNotes,
                     caregiverLinkNotes = caregiverNotes
                 }
             };
+        }
+
+        /// <summary>
+        /// One vitals reading. Carries the raw timestamp alongside the formatted date so the
+        /// list can be sorted chronologically rather than by the display string.
+        /// </summary>
+        private sealed class VitalsSnapshot
+        {
+            [JsonIgnore]
+            public DateTime? RecordedAtUtc { get; set; }
+
+            public string date { get; set; } = string.Empty;
+            public double? weight { get; set; }
+            public string? bp { get; set; }
+            public double? temp { get; set; }
+            public int? pulse { get; set; }
+            public int? spo2 { get; set; }
+            public double? bmi { get; set; }
         }
 
         private class PatientAddressMetadata
