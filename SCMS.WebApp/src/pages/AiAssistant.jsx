@@ -755,11 +755,7 @@ export default function AiAssistant() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={
-              language === "mm"
-                ? "မေးမြန်းလိုသောအချက် ရေးပါ (ဥပမာ- 'ယနေ့ ရက်ချိန်းများ ပြပါ', 'ပါရာစီတမော လက်ကျန်စစ်ပေးပါ')..."
-                : "Ask anything (e.g. 'What are today's urgent appointments?' or 'Check Paracetamol stock')..."
-            }
+            placeholder="Ask Anything"
             className="scms-input w-full pr-12 rounded-2xl h-11 text-xs"
           />
           <button

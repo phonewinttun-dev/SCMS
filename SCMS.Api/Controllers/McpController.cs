@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -69,16 +70,38 @@ namespace SCMS.Api.Controllers
                 return BadRequest(Result<AiChatResponse>.Failure("Chat messages are required."));
             }
 
-            // 1. Resolve Gemini API Key
-            var apiKey = _configuration["Gemini:ApiKey"];
-            if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "YOUR_GEMINI_API_KEY_HERE")
+            // 1. Resolve Gemini API Key(s) (supports single ApiKey and rotating ApiKeys array)
+            var availableKeys = new List<string>();
+            var singleKey = _configuration["Gemini:ApiKey"];
+            if (!string.IsNullOrWhiteSpace(singleKey) && singleKey != "YOUR_GEMINI_API_KEY_HERE")
             {
-                apiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+                availableKeys.Add(singleKey.Trim());
             }
 
-            if (string.IsNullOrWhiteSpace(apiKey))
+            var keySection = _configuration.GetSection("Gemini:ApiKeys");
+            foreach (var child in keySection.GetChildren())
             {
-                return BadRequest(Result<AiChatResponse>.Failure("Gemini API key is not configured. Please add Gemini:ApiKey to appsettings.json or set GEMINI_API_KEY environment variable."));
+                if (!string.IsNullOrWhiteSpace(child.Value) && !availableKeys.Contains(child.Value.Trim()))
+                {
+                    availableKeys.Add(child.Value.Trim());
+                }
+            }
+
+            var envKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+            if (!string.IsNullOrWhiteSpace(envKey) && !availableKeys.Contains(envKey.Trim()))
+            {
+                availableKeys.Add(envKey.Trim());
+            }
+
+            if (availableKeys.Count == 0)
+            {
+                return BadRequest(Result<AiChatResponse>.Failure("Gemini API key is not configured. Please add Gemini:ApiKey or Gemini:ApiKeys to user-secrets/appsettings.json."));
+            }
+
+            var modelName = _configuration["Gemini:Model"];
+            if (string.IsNullOrWhiteSpace(modelName))
+            {
+                modelName = "gemini-3.6-flash";
             }
 
             try
@@ -124,14 +147,17 @@ namespace SCMS.Api.Controllers
                     }
                 };
 
-                // 4. Map chat history to Gemini structure
-                var contents = new List<GeminiContent>();
+                // 4. Map chat history to Gemini structure using JsonArray to ensure lossless multi-turn state preservation
+                var contents = new JsonArray();
                 foreach (var msg in request.Messages)
                 {
-                    contents.Add(new GeminiContent
+                    contents.Add(new JsonObject
                     {
-                        Role = string.Equals(msg.Role, "user", StringComparison.OrdinalIgnoreCase) ? "user" : "model",
-                        Parts = new List<GeminiPart> { new() { Text = msg.Content } }
+                        ["role"] = string.Equals(msg.Role, "user", StringComparison.OrdinalIgnoreCase) ? "user" : "model",
+                        ["parts"] = new JsonArray
+                        {
+                            new JsonObject { ["text"] = msg.Content }
+                        }
                     });
                 }
 
@@ -141,65 +167,74 @@ namespace SCMS.Api.Controllers
 
                 for (int iter = 0; iter < maxIterations; iter++)
                 {
-                    var geminiReq = new GeminiGenerateRequest
+                    var geminiReq = new JsonObject
                     {
-                        Contents = contents,
-                        SystemInstruction = systemInstruction,
-                        Tools = geminiTools
+                        ["contents"] = contents.DeepClone(),
+                        ["systemInstruction"] = JsonNode.Parse(JsonSerializer.Serialize(systemInstruction)),
+                        ["tools"] = JsonNode.Parse(JsonSerializer.Serialize(geminiTools))
                     };
 
-                    var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}";
                     HttpResponseMessage httpResponse = null!;
                     string errContent = string.Empty;
                     bool callSuccessful = false;
 
-                    for (int retry = 0; retry < 3; retry++)
+                    foreach (var apiKey in availableKeys)
                     {
-                        try
+                        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={apiKey}";
+
+                        for (int retry = 0; retry < 2; retry++)
                         {
-                            httpResponse = await HttpClient.PostAsJsonAsync(url, geminiReq);
-                            if (httpResponse.IsSuccessStatusCode)
-                            {
-                                callSuccessful = true;
-                                break;
-                            }
-
-                            errContent = await httpResponse.Content.ReadAsStringAsync();
-
-                            bool isRetryable = false;
                             try
                             {
-                                var errObj = JsonSerializer.Deserialize<GeminiErrorResponse>(errContent);
-                                if (errObj?.Error != null)
+                                httpResponse = await HttpClient.PostAsJsonAsync(url, geminiReq);
+                                if (httpResponse.IsSuccessStatusCode)
                                 {
-                                    var code = errObj.Error.Code;
-                                    var status = errObj.Error.Status;
-                                    if (code == 503 || status == "UNAVAILABLE" || code == 429 || status == "RESOURCE_EXHAUSTED")
+                                    callSuccessful = true;
+                                    break;
+                                }
+
+                                errContent = await httpResponse.Content.ReadAsStringAsync();
+
+                                bool isRetryable = false;
+                                try
+                                {
+                                    var errObj = JsonSerializer.Deserialize<GeminiErrorResponse>(errContent);
+                                    if (errObj?.Error != null)
+                                    {
+                                        var code = errObj.Error.Code;
+                                        var status = errObj.Error.Status;
+                                        if (code == 503 || status == "UNAVAILABLE" || code == 429 || status == "RESOURCE_EXHAUSTED")
+                                        {
+                                            isRetryable = true;
+                                        }
+                                    }
+                                }
+                                catch
+                                {
+                                    if (httpResponse.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable ||
+                                        (int)httpResponse.StatusCode == 429)
                                     {
                                         isRetryable = true;
                                     }
                                 }
-                            }
-                            catch
-                            {
-                                if (httpResponse.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable ||
-                                    (int)httpResponse.StatusCode == 429)
+
+                                if (!isRetryable)
                                 {
-                                    isRetryable = true;
+                                    break;
                                 }
-                            }
 
-                            if (!isRetryable)
+                                await Task.Delay(TimeSpan.FromSeconds(retry + 1));
+                            }
+                            catch (Exception ex)
                             {
-                                break;
+                                errContent = $"Network/connection error: {ex.Message}";
+                                await Task.Delay(TimeSpan.FromSeconds(retry + 1));
                             }
-
-                            await Task.Delay(TimeSpan.FromSeconds(retry + 1));
                         }
-                        catch (Exception ex)
+
+                        if (callSuccessful)
                         {
-                            errContent = $"Network/connection error: {ex.Message}";
-                            await Task.Delay(TimeSpan.FromSeconds(retry + 1));
+                            break;
                         }
                     }
 
@@ -226,9 +261,12 @@ namespace SCMS.Api.Controllers
                                     {
                                         userFriendlyMessage = "The AI service has reached its rate limit. Please wait a moment before trying again.";
                                     }
-                                    else if (code == 400 && msg.Contains("API key", StringComparison.OrdinalIgnoreCase))
+                                    else if ((code == 400 || code == 401 || string.Equals(status, "UNAUTHENTICATED", StringComparison.OrdinalIgnoreCase)) &&
+                                             (msg.Contains("API key", StringComparison.OrdinalIgnoreCase) ||
+                                              msg.Contains("authentication", StringComparison.OrdinalIgnoreCase) ||
+                                              msg.Contains("credential", StringComparison.OrdinalIgnoreCase)))
                                     {
-                                        userFriendlyMessage = "The configured Gemini API key is invalid. Please check your system configuration.";
+                                        userFriendlyMessage = "The Gemini API key is missing or invalid. Please add a valid API key to 'Gemini:ApiKey' in appsettings.json or set the GEMINI_API_KEY environment variable (obtain a free key from https://aistudio.google.com/).";
                                     }
                                     else if (!string.IsNullOrWhiteSpace(msg))
                                     {
@@ -249,34 +287,71 @@ namespace SCMS.Api.Controllers
                         return BadRequest(Result<AiChatResponse>.Failure(userFriendlyMessage));
                     }
 
-                    var geminiRes = await httpResponse.Content.ReadFromJsonAsync<GeminiGenerateResponse>();
-                    var candidate = geminiRes?.Candidates?.FirstOrDefault();
-                    var modelContent = candidate?.Content;
+                    var rawResponseJson = await httpResponse.Content.ReadAsStringAsync();
+                    var resNode = JsonNode.Parse(rawResponseJson);
+                    var candidateNode = resNode?["candidates"]?[0];
+                    var modelContentNode = candidateNode?["content"]?.DeepClone();
 
-                    if (modelContent == null || modelContent.Parts == null || modelContent.Parts.Count == 0)
+                    if (modelContentNode == null || modelContentNode["parts"] is not JsonArray partsArray || partsArray.Count == 0)
                     {
                         break;
                     }
 
-                    contents.Add(modelContent);
+                    // Preserve 100% of the raw model response content (including thought_signature and thought blocks)
+                    contents.Add(modelContentNode);
 
-                    var functionCalls = modelContent.Parts.Where(p => p.FunctionCall != null).Select(p => p.FunctionCall!).ToList();
+                    var functionCalls = new List<(string Name, Dictionary<string, object> Args, string? Id, string? ThoughtSignature)>();
+
+                    foreach (var partNode in partsArray)
+                    {
+                        if (partNode?["functionCall"] is JsonObject fnCallObj)
+                        {
+                            var fnName = fnCallObj["name"]?.GetValue<string>() ?? string.Empty;
+                            var argsDict = new Dictionary<string, object>();
+                            if (fnCallObj["args"] is JsonObject argsObj)
+                            {
+                                foreach (var kvp in argsObj)
+                                {
+                                    if (kvp.Value != null)
+                                    {
+                                        argsDict[kvp.Key] = kvp.Value.Deserialize<object>() ?? kvp.Value.ToString();
+                                    }
+                                }
+                            }
+                            var id = fnCallObj["id"]?.GetValue<string>();
+                            var sig = partNode["thought_signature"]?.GetValue<string>()
+                                   ?? partNode["thoughtSignature"]?.GetValue<string>()
+                                   ?? fnCallObj["thought_signature"]?.GetValue<string>()
+                                   ?? fnCallObj["thoughtSignature"]?.GetValue<string>();
+
+                            functionCalls.Add((fnName, argsDict, id, sig));
+                        }
+                    }
 
                     if (functionCalls.Count == 0)
                     {
-                        finalReply = modelContent.Parts.FirstOrDefault(p => !string.IsNullOrEmpty(p.Text))?.Text ?? finalReply;
+                        foreach (var partNode in partsArray)
+                        {
+                            if (partNode?["thought"]?.GetValue<bool>() == true) continue;
+
+                            var text = partNode?["text"]?.GetValue<string>();
+                            if (!string.IsNullOrEmpty(text))
+                            {
+                                finalReply = text;
+                                break;
+                            }
+                        }
                         break;
                     }
 
-                    var toolResponseParts = new List<GeminiPart>();
+                    var toolResponseParts = new JsonArray();
 
-                    foreach (var call in functionCalls)
+                    foreach (var (name, args, id, thoughtSig) in functionCalls)
                     {
-                        var toolArgs = call.Args ?? new Dictionary<string, object>();
                         var localCallResult = await _mcpService.CallToolAsync(new McpToolCallRequest
                         {
-                            Name = call.Name,
-                            Arguments = toolArgs
+                            Name = name,
+                            Arguments = args
                         });
 
                         object responseData;
@@ -289,20 +364,33 @@ namespace SCMS.Api.Controllers
                             responseData = new { error = localCallResult.Message ?? "Execution failed." };
                         }
 
-                        toolResponseParts.Add(new GeminiPart
+                        var fnResponseObj = new JsonObject
                         {
-                            FunctionResponse = new GeminiFunctionResponse
-                            {
-                                Name = call.Name,
-                                Response = responseData
-                            }
-                        });
+                            ["name"] = name,
+                            ["response"] = JsonNode.Parse(JsonSerializer.Serialize(responseData))
+                        };
+                        if (!string.IsNullOrEmpty(id))
+                        {
+                            fnResponseObj["id"] = id;
+                        }
+
+                        var partObj = new JsonObject
+                        {
+                            ["functionResponse"] = fnResponseObj
+                        };
+
+                        if (!string.IsNullOrEmpty(thoughtSig))
+                        {
+                            partObj["thought_signature"] = thoughtSig;
+                        }
+
+                        toolResponseParts.Add(partObj);
                     }
 
-                    contents.Add(new GeminiContent
+                    contents.Add(new JsonObject
                     {
-                        Role = "user",
-                        Parts = toolResponseParts
+                        ["role"] = "user",
+                        ["parts"] = toolResponseParts
                     });
                 }
 
@@ -367,6 +455,9 @@ namespace SCMS.Api.Controllers
 
         [JsonPropertyName("parts")]
         public List<GeminiPart> Parts { get; set; } = new();
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     public class GeminiPart
@@ -375,6 +466,14 @@ namespace SCMS.Api.Controllers
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Text { get; set; }
 
+        [JsonPropertyName("thought")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public bool? Thought { get; set; }
+
+        [JsonPropertyName("thought_signature")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ThoughtSignature { get; set; }
+
         [JsonPropertyName("functionCall")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public GeminiFunctionCall? FunctionCall { get; set; }
@@ -382,6 +481,9 @@ namespace SCMS.Api.Controllers
         [JsonPropertyName("functionResponse")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public GeminiFunctionResponse? FunctionResponse { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     public class GeminiInstruction
@@ -410,20 +512,42 @@ namespace SCMS.Api.Controllers
 
     public class GeminiFunctionCall
     {
+        [JsonPropertyName("id")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Id { get; set; }
+
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
         [JsonPropertyName("args")]
         public Dictionary<string, object>? Args { get; set; }
+
+        [JsonPropertyName("thought_signature")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ThoughtSignature { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     public class GeminiFunctionResponse
     {
+        [JsonPropertyName("id")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Id { get; set; }
+
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
         [JsonPropertyName("response")]
         public object Response { get; set; } = new { };
+
+        [JsonPropertyName("thought_signature")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ThoughtSignature { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     public class GeminiGenerateResponse
