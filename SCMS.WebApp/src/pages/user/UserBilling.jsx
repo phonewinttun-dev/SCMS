@@ -6,6 +6,9 @@ import {
   CheckCircledIcon,
   Cross2Icon,
   ClockIcon,
+  ImageIcon,
+  UploadIcon,
+  TrashIcon,
 } from "@radix-ui/react-icons";
 import PageHeader from "../../components/PageHeader";
 import { Select } from "../../components/ui/select";
@@ -27,6 +30,9 @@ export default function UserBilling() {
   const [payingInvoice, setPayingInvoice] = useState(null);
   const [paymentForm, setPaymentForm] = useState({
     paymentMethod: "kbzpay",
+    transactionLast6: "",
+    screenshotFile: null,
+    screenshotPreview: "",
     screenshotUrl: "",
   });
   const [submittingPayment, setSubmittingPayment] = useState(false);
@@ -51,28 +57,92 @@ export default function UserBilling() {
     }
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      showError("Please upload a valid image file (JPEG, PNG, or WebP).", "Invalid File Format");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showError("Image file size exceeds the maximum limit of 5 MB.", "File Too Large");
+      return;
+    }
+
+    if (paymentForm.screenshotPreview) {
+      URL.revokeObjectURL(paymentForm.screenshotPreview);
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setPaymentForm((prev) => ({
+      ...prev,
+      screenshotFile: file,
+      screenshotPreview: previewUrl,
+    }));
+  };
+
+  const handleRemoveFile = () => {
+    if (paymentForm.screenshotPreview) {
+      URL.revokeObjectURL(paymentForm.screenshotPreview);
+    }
+    setPaymentForm((prev) => ({
+      ...prev,
+      screenshotFile: null,
+      screenshotPreview: "",
+    }));
+  };
+
   const handlePayment = async (e) => {
     e.preventDefault();
     if (!payingInvoice) return;
 
-    const cleanProof = sanitizeText(paymentForm.screenshotUrl);
-    if (!cleanProof) {
-      showError("Please provide a payment transfer screenshot URL or transaction reference number.", "Payment Proof Required");
+    const cleanTxn = sanitizeText(paymentForm.transactionLast6 || "").trim();
+    if (!cleanTxn || cleanTxn.length !== 6 || !/^\d{6}$/.test(cleanTxn)) {
+      showError(
+        "Please enter exactly the last 6 digits of the transaction ID from your mobile banking receipt (e.g. 661073).",
+        "Transaction ID Required"
+      );
+      return;
+    }
+
+    if (!paymentForm.screenshotFile && !paymentForm.screenshotUrl?.trim()) {
+      showError(
+        "Please attach your payment transfer receipt screenshot or provide an image link.",
+        "Payment Proof Required"
+      );
       return;
     }
 
     try {
       setSubmittingPayment(true);
-      await paymentsApi.manualProof({
-        appointmentId: Number(payingInvoice.appointmentId),
-        paymentMethod: paymentForm.paymentMethod || "kbzpay",
-        amount: Number(payingInvoice.amount),
-        screenshotUrl: cleanProof,
-      });
 
+      const formData = new FormData();
+      formData.append("appointmentId", Number(payingInvoice.appointmentId));
+      formData.append("paymentMethod", paymentForm.paymentMethod || "kbzpay");
+      formData.append("amount", Number(payingInvoice.amount));
+      formData.append("transactionLast6", cleanTxn);
+
+      if (paymentForm.screenshotFile) {
+        formData.append("screenshot", paymentForm.screenshotFile);
+      } else if (paymentForm.screenshotUrl?.trim()) {
+        formData.append("screenshotUrl", sanitizeText(paymentForm.screenshotUrl).trim());
+      }
+
+      await paymentsApi.manualProof(formData);
+
+      handleRemoveFile();
       setPayingInvoice(null);
-      setPaymentForm({ paymentMethod: "kbzpay", screenshotUrl: "" });
-      showSuccess("Payment transfer proof submitted for clinic accounts review.");
+      setPaymentForm({
+        paymentMethod: "kbzpay",
+        transactionLast6: "",
+        screenshotFile: null,
+        screenshotPreview: "",
+        screenshotUrl: "",
+      });
+      showSuccess("Payment transfer proof and transaction reference submitted for clinic accounts review.");
       await loadDashboard(activeProfile?.patientId);
     } catch (error) {
       showError(error);
@@ -238,34 +308,96 @@ export default function UserBilling() {
               />
             </div>
 
-            <label className="block text-xs">
-              <span className="mb-1.5 block font-bold text-foreground">
-                Transfer Receipt / Screenshot URL <span className="text-rose-500">*</span>
+            <div className="space-y-1.5 text-xs">
+              <span className="block font-bold text-foreground">
+                Transaction ID (Last 6 Digits) <span className="text-rose-500">*</span>
               </span>
-              <input
-                type="url"
-                required
-                placeholder="https://images.example.com/payment-receipt.jpg"
-                className="scms-input w-full text-xs font-mono"
-                value={paymentForm.screenshotUrl}
-                onChange={(e) => setPaymentForm((p) => ({ ...p, screenshotUrl: e.target.value }))}
-              />
-              <span className="text-[11px] text-muted-foreground block mt-1">
-                Paste the image link or hosted transaction receipt from your mobile banking app.
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  pattern="\d{6}"
+                  placeholder="e.g. 661073"
+                  className="scms-input w-full text-sm font-mono tracking-widest font-bold uppercase"
+                  value={paymentForm.transactionLast6}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setPaymentForm((p) => ({ ...p, transactionLast6: val }));
+                  }}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[11px] text-muted-foreground font-semibold">
+                  {paymentForm.transactionLast6.length}/6
+                </span>
+              </div>
+              <span className="text-[11px] text-muted-foreground block">
+                Enter the last 6 numbers from the transfer slip လုပ်ဆောင်မှုအမှတ် (e.g. from 01004252031742<strong>661073</strong>).
               </span>
-            </label>
+            </div>
+
+            {/* Payment Proof Attachment */}
+            <div className="space-y-2 text-xs">
+              <span className="block font-bold text-foreground">
+                Payment Screenshot / E-Receipt Proof <span className="text-rose-500">*</span>
+              </span>
+
+              {paymentForm.screenshotPreview ? (
+                <div className="relative rounded-2xl border border-border/80 bg-secondary/30 p-2.5 space-y-2">
+                  <div className="relative overflow-hidden rounded-xl border border-border/70 max-h-48 bg-slate-950/5 flex items-center justify-center">
+                    <img
+                      src={paymentForm.screenshotPreview}
+                      alt="Receipt Preview"
+                      className="w-full max-h-44 object-contain"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground text-[11px] truncate max-w-[220px]">
+                      <ImageIcon className="w-3.5 h-3.5 shrink-0 text-orange-500" />
+                      <span className="truncate font-medium">{paymentForm.screenshotFile?.name || "Uploaded Slip"}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveFile}
+                      className="scms-btn-icon-danger p-1 text-xs"
+                      title="Remove image"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-border/80 hover:border-orange-500/60 rounded-2xl cursor-pointer bg-secondary/20 hover:bg-secondary/40 transition-colors">
+                  <UploadIcon className="w-6 h-6 text-muted-foreground mb-1.5" />
+                  <span className="font-semibold text-foreground text-xs">
+                    Click or drag & drop payment screenshot
+                  </span>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">
+                    PNG, JPG, or WebP (Max 5 MB)
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/jpg"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
 
             <div className="pt-2 flex justify-end gap-2 border-t border-border/70">
               <button
                 type="button"
-                onClick={() => setPayingInvoice(null)}
+                onClick={() => {
+                  handleRemoveFile();
+                  setPayingInvoice(null);
+                }}
                 className="scms-btn-outline text-xs"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={submittingPayment}
+                disabled={submittingPayment || paymentForm.transactionLast6.length !== 6 || (!paymentForm.screenshotFile && !paymentForm.screenshotUrl)}
                 className="scms-btn-primary text-xs font-bold"
               >
                 {submittingPayment ? "Submitting..." : "Submit Payment Proof"}

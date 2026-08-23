@@ -78,8 +78,16 @@ export const diseasesApi = {
 export const paymentsApi = {
   list: (params) => api.get("/Payments", { params: toQuery(params) }).then(unwrap),
   search: (params) => api.get("/Payments/search", { params: toQuery(params) }).then(unwrap),
+  get: (id) => api.get(`/Payments/${id}`).then(unwrap),
   gatewayCallback: (payload) => api.post("/Payments/gateway-callback", payload).then(unwrap),
-  manualProof: (payload) => api.post("/Payments/manual-proof", payload).then(unwrap),
+  manualProof: (payload) =>
+    api
+      .post(
+        "/Payments/manual-proof",
+        payload,
+        payload instanceof FormData ? { headers: { "Content-Type": "multipart/form-data" } } : undefined
+      )
+      .then(unwrap),
   approve: (id) => api.post(`/Payments/${id}/approve`).then(unwrap),
   invoicePdf: (id) => api.get(`/Payments/${id}/invoice/pdf`, { responseType: "blob" }),
 };
