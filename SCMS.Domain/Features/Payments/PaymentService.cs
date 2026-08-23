@@ -102,22 +102,23 @@ namespace SCMS.Domain.Features.Payments
                 {
                     await _notificationService.CreateNotificationAsync(
                         appointment.Patient.UserId,
-                        "Payment Successful",
-                        $"Gateway payment of {payment.Amount:N2} received. Your appointment (Code: {appointment.AppointmentCode}) is now Confirmed.",
-                        $"/appointments/{appointment.Id}");
+                        "Payment Approved & Appointment Confirmed",
+                        $"Payment of {payment.Amount:N0} MMK received. Your appointment (Visit {appointment.AppointmentCode}) is now Confirmed.",
+                        $"/user/appointments");
                 }
                 else
                 {
                     var notification = new TblNotification
                     {
                         UserId = appointment.Patient.UserId,
-                        Title = "Payment Successful",
-                        Description = $"Gateway payment of {payment.Amount:N2} received. Your appointment (Code: {appointment.AppointmentCode}) is now Confirmed.",
-                        ActionRoute = $"/appointments/{appointment.Id}",
+                        Title = "Payment Approved & Appointment Confirmed",
+                        Description = $"Payment of {payment.Amount:N0} MMK received. Your appointment (Visit {appointment.AppointmentCode}) is now Confirmed.",
+                        ActionRoute = $"/user/appointments",
                         CreatedAt = DateTime.UtcNow,
                         DeleteFlag = false
                     };
                     _context.TblNotifications.Add(notification);
+                    await _context.SaveChangesAsync();
                 }
             }
             else
@@ -226,18 +227,18 @@ namespace SCMS.Domain.Features.Payments
             {
                 await _notificationService.CreateNotificationAsync(
                     appointment.Patient.UserId,
-                    "Payment Proof Uploaded",
-                    $"Your manual transfer proof (Amount: {request.Amount:N2}, Txn: {request.TransactionLast6.Trim()}) is uploaded. It will be verified by clinic staff shortly.",
-                    $"/appointments/{appointment.Id}");
+                    "Payment Proof Submitted",
+                    $"Transfer proof of {request.Amount:N0} MMK (Txn: {request.TransactionLast6.Trim()}) for Visit {appointment.AppointmentCode} has been submitted for clinic verification.",
+                    $"/user/billing");
             }
             else
             {
                 var notification = new TblNotification
                 {
                     UserId = appointment.Patient.UserId,
-                    Title = "Payment Proof Uploaded",
-                    Description = $"Your manual transfer proof (Amount: {request.Amount:N2}, Txn: {request.TransactionLast6.Trim()}) is uploaded. It will be verified by clinic staff shortly.",
-                    ActionRoute = $"/appointments/{appointment.Id}",
+                    Title = "Payment Proof Submitted",
+                    Description = $"Transfer proof of {request.Amount:N0} MMK (Txn: {request.TransactionLast6.Trim()}) for Visit {appointment.AppointmentCode} has been submitted for clinic verification.",
+                    ActionRoute = $"/user/billing",
                     CreatedAt = DateTime.UtcNow,
                     DeleteFlag = false
                 };
@@ -276,18 +277,18 @@ namespace SCMS.Domain.Features.Payments
             {
                 await _notificationService.CreateNotificationAsync(
                     payment.Appointment.Patient.UserId,
-                    "Payment Verified",
-                    $"Your manual payment proof of {payment.Amount:N2} has been verified and approved. Your appointment (Code: {payment.Appointment.AppointmentCode}) is now Confirmed.",
-                    $"/appointments/{payment.Appointment.Id}");
+                    "Payment Approved & Appointment Confirmed",
+                    $"Your payment of {payment.Amount:N0} MMK has been approved. Your appointment (Visit {payment.Appointment.AppointmentCode}) is now Confirmed.",
+                    $"/user/appointments");
             }
             else
             {
                 var notification = new TblNotification
                 {
                     UserId = payment.Appointment.Patient.UserId,
-                    Title = "Payment Verified",
-                    Description = $"Your manual payment proof of {payment.Amount:N2} has been verified and approved. Your appointment (Code: {payment.Appointment.AppointmentCode}) is now Confirmed.",
-                    ActionRoute = $"/appointments/{payment.Appointment.Id}",
+                    Title = "Payment Approved & Appointment Confirmed",
+                    Description = $"Your payment of {payment.Amount:N0} MMK has been approved. Your appointment (Visit {payment.Appointment.AppointmentCode}) is now Confirmed.",
+                    ActionRoute = $"/user/appointments",
                     CreatedAt = DateTime.UtcNow,
                     DeleteFlag = false
                 };

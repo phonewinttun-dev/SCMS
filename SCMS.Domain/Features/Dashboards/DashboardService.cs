@@ -528,7 +528,8 @@ namespace SCMS.Domain.Features.Dashboards
                 .AsNoTracking()
                 .Include(p => p.Appointment)
                     .ThenInclude(a => a.Patient)
-                .Where(p => p.Appointment != null && patientIds.Contains(p.Appointment.PatientId) && p.PaymentStatus != "paid")
+                .Where(p => p.Appointment != null && patientIds.Contains(p.Appointment.PatientId))
+                .OrderByDescending(p => p.UpdatedAt ?? p.PaidAt ?? DateTime.MinValue)
                 .Select(p => new UnpaidInvoiceDto
                 {
                     Id = p.Id,
@@ -540,7 +541,11 @@ namespace SCMS.Domain.Features.Dashboards
                     Tax = p.Tax,
                     Charges = p.Charges,
                     PaymentStatus = p.PaymentStatus,
-                    PaymentMethod = p.PaymentMethod
+                    PaymentMethod = p.PaymentMethod,
+                    PaymentScreenshot = p.PaymentScreenshot,
+                    TransactionRef = p.TransactionRef,
+                    PaidAt = p.PaidAt,
+                    UpdatedAt = p.UpdatedAt
                 })
                 .ToListAsync(cancellationToken);
         }

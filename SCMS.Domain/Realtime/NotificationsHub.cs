@@ -1,6 +1,8 @@
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-using System.Threading.Tasks;
+using SCMS.Domain.Security;
 
 namespace SCMS.Domain.Realtime
 {
@@ -9,14 +11,17 @@ namespace SCMS.Domain.Realtime
     {
         public override async Task OnConnectedAsync()
         {
-            if (Context.User?.IsInRole("owner") == true
-                || Context.User?.IsInRole("admin") == true
-                || Context.User?.IsInRole("doctor") == true)
+            var userId = Context.User?.GetUserId();
+            if (userId.HasValue)
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, $"user-{userId.Value}");
+            }
+
+            if (Context.User?.IsStaff() == true)
             {
                 await Groups.AddToGroupAsync(Context.ConnectionId, "clinic-notifications");
             }
             await base.OnConnectedAsync();
         }
-
     }
 }

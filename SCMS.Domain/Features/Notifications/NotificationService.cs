@@ -146,8 +146,11 @@ namespace SCMS.Domain.Features.Notifications
                 {
                     if (userId.HasValue)
                     {
-                        await _hubContext.Clients.User(userId.Value.ToString()).SendAsync("ReceiveNotification", response);
-                        await _hubContext.Clients.User(userId.Value.ToString()).SendAsync("NotificationsChanged");
+                        var userKey = userId.Value.ToString();
+                        await _hubContext.Clients.User(userKey).SendAsync("ReceiveNotification", response);
+                        await _hubContext.Clients.Group($"user-{userKey}").SendAsync("ReceiveNotification", response);
+                        await _hubContext.Clients.User(userKey).SendAsync("NotificationsChanged");
+                        await _hubContext.Clients.Group($"user-{userKey}").SendAsync("NotificationsChanged");
                     }
                     else
                     {

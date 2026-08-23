@@ -264,5 +264,9 @@ namespace SCMS.Domain.Features.Dashboards.Models
         public decimal Charges { get; init; }
         public string PaymentStatus { get; init; } = null!;
         public string PaymentMethod { get; init; } = null!;
+        public string? PaymentScreenshot { get; init; }
+        public string? TransactionRef { get; init; }
+        public DateTime? PaidAt { get; init; }
+        public DateTime? UpdatedAt { get; init; }
     }
 }
