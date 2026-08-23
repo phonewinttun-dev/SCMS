@@ -77,7 +77,7 @@ export default function UserPrescriptions() {
                 <div className="flex items-start justify-between gap-3 pb-3 border-b border-border/70">
                   <div>
                     <span className="text-xs font-mono font-bold text-orange-600 dark:text-orange-400">
-                      Visit #{rx.appointmentCode || `APT-${rx.appointmentId || rx.id}`}
+                      Visit {rx.appointmentCode || `APT-${rx.appointmentId || rx.id}`}
                     </span>
                     <h4 className="text-sm font-bold text-foreground mt-0.5">
                       Issued on {formatDate(rx.createdAt || rx.prescribedAt)}

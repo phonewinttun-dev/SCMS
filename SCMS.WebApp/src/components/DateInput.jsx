@@ -44,14 +44,23 @@ export default function DateInput({
   max = "",
   disabled = false,
   required = false,
+  hasError = false,
   id,
   name,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
-  // Parse initial view year and month from value or fallback to today
-  const initialDate = value ? new Date(value) : new Date();
+  // Normalize value to ISO string if an object or event was passed
+  const safeValue =
+    typeof value === "object" && value !== null && "target" in value
+      ? value.target?.value || ""
+      : typeof value === "string" && value !== "[object Object]"
+      ? value
+      : "";
+
+  // Parse initial view year and month from safeValue or fallback to today
+  const initialDate = safeValue ? new Date(safeValue) : new Date();
   const validInitial = isNaN(initialDate.getTime()) ? new Date() : initialDate;
 
   const [viewYear, setViewYear] = useState(validInitial.getFullYear());
@@ -60,14 +69,14 @@ export default function DateInput({
 
   // Sync view when value changes from outside
   useEffect(() => {
-    if (value) {
-      const d = new Date(value);
+    if (safeValue) {
+      const d = new Date(safeValue);
       if (!isNaN(d.getTime())) {
         setViewYear(d.getFullYear());
         setViewMonth(d.getMonth());
       }
     }
-  }, [value]);
+  }, [safeValue]);
 
   // Click outside to close
   useEffect(() => {
@@ -154,8 +163,8 @@ export default function DateInput({
   let selectedYear = null;
   let selectedMonth = null;
   let selectedDay = null;
-  if (value) {
-    const d = new Date(value);
+  if (safeValue) {
+    const d = new Date(safeValue);
     if (!isNaN(d.getTime())) {
       selectedYear = d.getFullYear();
       selectedMonth = d.getMonth();
@@ -193,18 +202,19 @@ export default function DateInput({
         aria-label={placeholder}
         className={cn(
           "flex h-11 min-h-11 w-full items-center justify-between gap-2 rounded-2xl border border-input bg-card/95 px-3.5 py-2 text-xs font-semibold text-foreground shadow-2xs backdrop-blur-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-          isOpen && "border-orange-500/80 ring-2 ring-orange-500/20"
+          isOpen && "border-orange-500/80 ring-2 ring-orange-500/20",
+          hasError && "border-rose-500 ring-2 ring-rose-500/20"
         )}
       >
         <div className="flex items-center gap-2 truncate">
           <CalendarIcon className="h-4 w-4 shrink-0 text-orange-600 dark:text-orange-400" />
-          <span className={cn("truncate font-mono", value ? "text-foreground font-bold" : "text-muted-foreground")}>
-            {value ? formatDisplayDate(value) : placeholder}
+          <span className={cn("truncate font-mono", safeValue ? "text-foreground font-bold" : "text-muted-foreground")}>
+            {safeValue ? formatDisplayDate(safeValue) : placeholder}
           </span>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {value && !disabled && (
+          {safeValue && !disabled && (
             <span
               role="button"
               tabIndex={0}
@@ -226,7 +236,7 @@ export default function DateInput({
         type="hidden"
         id={id}
         name={name}
-        value={value}
+        value={safeValue}
         required={required}
       />
 
@@ -425,7 +435,7 @@ export default function DateInput({
               Today
             </button>
             <div className="flex items-center gap-2">
-              {value && (
+              {safeValue && (
                 <button
                   type="button"
                   onClick={handleClear}

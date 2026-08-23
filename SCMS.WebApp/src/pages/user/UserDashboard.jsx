@@ -5,7 +5,6 @@ import {
   PlusIcon,
   Cross2Icon,
   MagnifyingGlassIcon,
-  BellIcon,
   ClockIcon,
   ChevronLeftIcon,
 } from "@radix-ui/react-icons";
@@ -176,20 +175,6 @@ export default function UserDashboard() {
               </h2>
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate("/user/appointments")}
-              className="grid h-10 w-10 place-items-center rounded-2xl border border-border/80 bg-card text-foreground hover:bg-secondary transition-colors shadow-2xs btn-target cursor-pointer relative"
-              title="Notifications & Visits"
-              aria-label="Notifications"
-            >
-              <BellIcon className="w-4 h-4" />
-              {Boolean(nextAppt) && (
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-orange-500 ring-2 ring-card" />
-              )}
-            </button>
-          </div>
         </div>
 
         <div>
@@ -252,7 +237,7 @@ export default function UserDashboard() {
                     {nextAppt.reason || "General Medical Consultation"}
                   </h4>
                   <p className="text-xs text-white/90 font-medium">
-                    {nextAppt.tokenNumber > 0 ? `Arrival Token #${nextAppt.tokenNumber}` : "Scheduled Clinic Visit"}
+                    {nextAppt.tokenNumber > 0 ? `Arrival Token ${nextAppt.tokenNumber}` : "Scheduled Clinic Visit"}
                   </p>
                 </div>
               </div>
@@ -273,7 +258,7 @@ export default function UserDashboard() {
               <div className="flex items-center gap-2 text-white/95 justify-end truncate">
                 <ClockIcon className="h-4 w-4 shrink-0 text-white/80" />
                 <span className="font-mono font-bold truncate">
-                  #{nextAppt.appointmentCode || `APT-${nextAppt.id}`}
+                  {nextAppt.appointmentCode || `APT-${nextAppt.id}`}
                 </span>
               </div>
             </div>

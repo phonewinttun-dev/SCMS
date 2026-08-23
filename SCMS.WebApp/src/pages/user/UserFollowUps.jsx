@@ -60,7 +60,7 @@ export default function UserFollowUps() {
             >
               <div className="flex items-start justify-between gap-2 pb-3 border-b border-border/70">
                 <span className="font-mono text-xs font-bold text-orange-600 dark:text-orange-400">
-                  Visit #{visit.appointmentCode || visit.id}
+                  Visit {visit.appointmentCode || visit.id}
                 </span>
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                   <ClockIcon className="w-3 h-3" />

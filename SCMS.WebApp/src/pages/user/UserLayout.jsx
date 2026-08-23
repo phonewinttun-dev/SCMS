@@ -13,8 +13,10 @@ import {
   ChevronDownIcon,
   DownloadIcon,
   InfoCircledIcon,
+  BellIcon,
+  CheckIcon,
 } from "@radix-ui/react-icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import BrandLogo from "../../components/BrandLogo";
 import MobileBottomNav from "../../components/MobileBottomNav";
@@ -31,8 +33,9 @@ import { Select } from "../../components/ui/select";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
-import { showError, showSuccess, showConfirm } from "../../services/dialogs";
-import { dashboardsApi, patientsApi } from "../../services/scmsApi";
+import { showError, showSuccess, showConfirm, showToast } from "../../services/dialogs";
+import { dashboardsApi, patientsApi, notificationsApi } from "../../services/scmsApi";
+import { startNotificationsHub } from "../../services/signalrService";
 import { validatePatientProfile } from "../../utils/validation";
 import DateInput from "../../components/DateInput";
 import useScrollLock from "../../hooks/useScrollLock";
@@ -63,6 +66,37 @@ export default function UserLayout() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+
+  // Patient Notification state
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const notifRef = useRef(null);
+
+  const unreadCount = notifications.filter((n) => n.unread).length;
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await notificationsApi.list({ includeAll: false });
+      const items = res?.items || res?.data?.items || (Array.isArray(res) ? res : []);
+      if (items.length > 0) {
+        const mapped = items.map((item, idx) => ({
+          id: item.id || `notif-${idx}`,
+          title: item.title || "Clinic Notification",
+          description: (item.description || "").replace(/Token\s*#(\d+)/gi, "Token $1"),
+          actionRoute: item.actionRoute || "/user/appointments",
+          timeAgo: item.createdAt
+            ? new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            : "Recent",
+          unread: true,
+        }));
+        setNotifications(mapped);
+      } else {
+        setNotifications([]);
+      }
+    } catch (err) {
+      console.debug("User notification load notice:", err);
+    }
+  }, []);
 
   useScrollLock(manageOpen || drawerOpen);
 
@@ -148,6 +182,83 @@ export default function UserLayout() {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
     };
   }, [loadDashboard]);
+
+  useEffect(() => {
+    fetchNotifications();
+
+    // Start real-time SignalR notification listener
+    const { stop } = startNotificationsHub({
+      onReceiveNotification: (notification) => {
+        if (!notification) return;
+        const newNotif = {
+          id: notification.id || `realtime-${Date.now()}`,
+          title: notification.title || "Payment & Appointment Confirmed",
+          description: (notification.description || "").replace(/Token\s*#(\d+)/gi, "Token $1"),
+          actionRoute: notification.actionRoute || "/user/appointments",
+          timeAgo: "Just now",
+          unread: true,
+        };
+
+        setNotifications((prev) => [newNotif, ...prev.filter((n) => n.id !== newNotif.id)]);
+
+        // Display instant real-time toast alert
+        showToast(`${newNotif.title}: ${newNotif.description}`, "success");
+
+        // Immediately refresh user dashboard telemetry so statuses update live
+        loadDashboard();
+      },
+      onNotificationsChanged: () => {
+        fetchNotifications();
+        loadDashboard();
+      },
+    });
+
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => {
+      clearInterval(interval);
+      stop();
+    };
+  }, [fetchNotifications, loadDashboard]);
+
+  // Close notification popover on outside click or escape key
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && notifOpen) {
+        setNotifOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [notifOpen]);
+
+  const handleNotificationClick = async (item) => {
+    try {
+      if (item.id && typeof item.id === "number") {
+        await notificationsApi.read(item.id);
+      }
+    } catch (e) {
+      console.debug("Error marking notif read:", e);
+    }
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === item.id ? { ...n, unread: false } : n))
+    );
+    setNotifOpen(false);
+    navigate(item.actionRoute || "/user/appointments");
+  };
+
+  const handleMarkAllAsRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  };
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -400,33 +511,120 @@ export default function UserLayout() {
             >
               <HamburgerMenuIcon className="w-5 h-5" />
             </button>
-
-            <h1 className="text-base font-bold text-foreground hidden sm:block">
-              {activeProfile ? activeProfile.name : "Patient Portal"}
-            </h1>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Family Profile Switcher using Custom Accessible Select */}
-            {data?.patientProfiles && data.patientProfiles.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider hidden md:inline">
-                  Active Patient:
-                </span>
-                <div className="w-48">
-                  <Select
-                    value={String(activeProfileId || "")}
-                    onChange={(val) => switchActiveProfile(Number(val))}
-                    placeholder="Select Profile"
-                    options={data.patientProfiles.map((p) => ({
-                      value: String(p.patientId),
-                      label: p.name,
-                      description: p.bloodType || "O+",
-                    }))}
-                  />
+            {/* Notification Bell Dropdown Container */}
+            <div className="relative" ref={notifRef}>
+              <button
+                className={`relative grid h-9 w-9 place-items-center rounded-2xl border border-border/80 bg-card text-foreground hover:bg-secondary transition btn-target shadow-2xs ${
+                  notifOpen ? "ring-2 ring-orange-500/50 bg-secondary" : ""
+                }`}
+                title={t.notifications || "Notifications"}
+                aria-label={
+                  unreadCount > 0
+                    ? `${unreadCount} new notifications`
+                    : "No unread notifications"
+                }
+                aria-haspopup="true"
+                aria-expanded={notifOpen}
+                aria-controls="user-notification-dropdown-panel"
+                onClick={() => setNotifOpen((prev) => !prev)}
+              >
+                <BellIcon className="w-4 h-4" aria-hidden="true" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 grid h-4 min-w-4 px-1 place-items-center rounded-full bg-orange-500 text-[9px] font-bold text-white shadow-xs animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Popover Dropdown */}
+              {notifOpen && (
+                <div
+                  id="user-notification-dropdown-panel"
+                  role="region"
+                  aria-label={t.notifications || "Notifications"}
+                  className="absolute right-0 top-full mt-2.5 w-80 sm:w-96 rounded-3xl border border-border/80 bg-card/95 backdrop-blur-2xl shadow-scms-modal z-50 animate-fadeIn p-4 space-y-3"
+                >
+                  {/* Dropdown Header */}
+                  <div className="flex items-center justify-between pb-2.5 border-b border-border/70">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-bold text-foreground">
+                        {t.notifications || "Notifications"}
+                      </h4>
+                      {unreadCount > 0 && (
+                        <span className="rounded-full bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 px-2 py-0.5 text-[10px] font-extrabold font-mono">
+                          {unreadCount} new
+                        </span>
+                      )}
+                    </div>
+
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        className="text-[11px] font-semibold text-orange-600 dark:text-orange-400 hover:underline flex items-center gap-1"
+                        aria-label="Mark all notifications as read"
+                      >
+                        <CheckIcon className="w-3 h-3" aria-hidden="true" />
+                        <span>{t.markRead || "Mark all read"}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Notification List */}
+                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1 scrollbar-thin">
+                    {notifications.length > 0 ? (
+                      notifications.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => handleNotificationClick(item)}
+                          className={`w-full text-left p-3 rounded-2xl border transition-all flex items-start gap-3 btn-target ${
+                            item.unread
+                              ? "bg-orange-50/50 dark:bg-orange-950/30 border-orange-200/70 dark:border-orange-900/50 hover:bg-orange-50 dark:hover:bg-orange-950/50"
+                              : "bg-secondary/30 border-border/70 hover:bg-secondary/60"
+                          }`}
+                        >
+                          <div
+                            className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl text-xs font-bold ${
+                              item.unread
+                                ? "bg-orange-500 text-white shadow-2xs"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            <CalendarIcon className="w-4 h-4" aria-hidden="true" />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <span
+                                className={`text-xs font-bold truncate ${
+                                  item.unread
+                                    ? "text-foreground"
+                                    : "text-muted-foreground font-semibold"
+                                }`}
+                              >
+                                {item.title}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground shrink-0 font-mono">
+                                {item.timeAgo}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+                              {item.description}
+                            </p>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="py-8 text-center text-xs text-muted-foreground">
+                        {t.noNotifications || "No new notifications"}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Profile Avatar & Header Dropdown */}
             <DropdownMenu>
@@ -559,6 +757,7 @@ export default function UserLayout() {
                   data,
                   activeProfile,
                   setActiveProfile,
+                  switchActiveProfile,
                   filteredTelemetry,
                   loading,
                   loadDashboard,

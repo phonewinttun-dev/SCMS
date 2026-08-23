@@ -36,7 +36,8 @@ import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useTheme } from "../context/ThemeContext";
 import { notificationsApi } from "../services/scmsApi";
-import { showConfirm } from "../services/dialogs";
+import { showConfirm, showToast } from "../services/dialogs";
+import { startNotificationsHub } from "../services/signalrService";
 import useScrollLock from "../hooks/useScrollLock";
 
 const navGroups = [
@@ -142,7 +143,34 @@ export default function AppShell() {
         console.debug("Using fallback notifications for clinic dashboard");
       }
     };
+
     fetchNotifications();
+
+    const { stop } = startNotificationsHub({
+      onReceiveNotification: (notification) => {
+        if (!notification) return;
+        const newNotif = {
+          id: notification.id || `realtime-${Date.now()}`,
+          title: notification.title || "Clinic Notification",
+          description: (notification.description || "").replace(/Token\s*#(\d+)/gi, "Token $1"),
+          actionRoute: notification.actionRoute || "/app/appointments",
+          timeAgo: "Just now",
+          unread: true,
+        };
+
+        setNotifications((prev) => [newNotif, ...prev.filter((n) => n.id !== newNotif.id)]);
+        showToast(`${newNotif.title}: ${newNotif.description}`, "info");
+      },
+      onNotificationsChanged: () => {
+        fetchNotifications();
+      },
+    });
+
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => {
+      clearInterval(interval);
+      stop();
+    };
   }, []);
 
   // Close dropdown on click outside or escape key
