@@ -217,7 +217,17 @@ INSERT INTO tbl_appointment (id, appointment_code, patient_id, datetime, status,
 (10025, 'APT-20260824-010', 10009, TIMESTAMP '2026-08-24 16:45:00', 'cancelled', 'Patient requested cancellation due to work schedule', TIMESTAMP '2026-08-23 16:45:00', TIMESTAMP '2026-08-24 08:00:00'),
 (10026, 'APT-20260825-008', 10007, TIMESTAMP '2026-08-25 10:30:00', 'confirmed', 'General Consultation & Prescription Renewal', TIMESTAMP '2026-08-23 10:30:00', TIMESTAMP '2026-08-23 10:30:00'),
 (10027, 'APT-20260827-009', 10009, TIMESTAMP '2026-08-27 14:00:00', 'pending', 'Dermatology & Skin Rash Review', TIMESTAMP '2026-08-23 14:00:00', TIMESTAMP '2026-08-23 14:00:00'),
-(10028, 'APT-20260829-010', 10007, TIMESTAMP '2026-08-29 11:00:00', 'pending', 'General Wellness & Diagnostic Lab Review', TIMESTAMP '2026-08-23 11:00:00', TIMESTAMP '2026-08-23 11:00:00')
+(10028, 'APT-20260829-010', 10007, TIMESTAMP '2026-08-29 11:00:00', 'pending', 'General Wellness & Diagnostic Lab Review', TIMESTAMP '2026-08-23 11:00:00', TIMESTAMP '2026-08-23 11:00:00'),
+(10030, 'APT-20260826-001', 10008, TIMESTAMP '2026-08-26 08:30:00', 'completed', 'Hypertension Routine Follow-up & Morning BP Review', TIMESTAMP '2026-08-24 08:30:00', TIMESTAMP '2026-08-26 08:30:00'),
+(10031, 'APT-20260826-002', 10007, TIMESTAMP '2026-08-26 09:15:00', 'completed', 'Acute URI & High Fever Consultation', TIMESTAMP '2026-08-24 09:15:00', TIMESTAMP '2026-08-26 09:15:00'),
+(10032, 'APT-20260826-003', 10010, TIMESTAMP '2026-08-26 10:00:00', 'completed', 'Type 2 Diabetes Fasting Glucose Evaluation', TIMESTAMP '2026-08-24 10:00:00', TIMESTAMP '2026-08-26 10:00:00'),
+(10033, 'APT-20260826-004', 10009, TIMESTAMP '2026-08-26 11:00:00', 'completed', 'Allergic Rhinitis Flare-up & Sneezing', TIMESTAMP '2026-08-24 11:00:00', TIMESTAMP '2026-08-26 11:00:00'),
+(10034, 'APT-20260826-005', 10011, TIMESTAMP '2026-08-26 11:45:00', 'completed', 'Hyperlipidemia Follow-up & Cardiovascular Risk Review', TIMESTAMP '2026-08-24 11:45:00', TIMESTAMP '2026-08-26 11:45:00'),
+(10035, 'APT-20260826-006', 10012, TIMESTAMP '2026-08-26 13:30:00', 'completed', 'Pediatric Mild Asthma Exacerbation & Inhaler Review', TIMESTAMP '2026-08-24 13:30:00', TIMESTAMP '2026-08-26 13:30:00'),
+(10036, 'APT-20260826-007', 10008, TIMESTAMP '2026-08-26 14:30:00', 'confirmed', 'Afternoon Cardiovascular Follow-up & ECG Review', TIMESTAMP '2026-08-24 14:30:00', TIMESTAMP '2026-08-25 14:30:00'),
+(10037, 'APT-20260826-008', 10007, TIMESTAMP '2026-08-26 15:15:00', 'confirmed', 'General Medical Consultation & Prescription Renewal', TIMESTAMP '2026-08-25 15:15:00', TIMESTAMP '2026-08-25 15:15:00'),
+(10038, 'APT-20260826-009', 10010, TIMESTAMP '2026-08-26 16:00:00', 'pending', 'Dietary Advice & Laboratory Panel Review', TIMESTAMP '2026-08-25 16:00:00', TIMESTAMP '2026-08-25 16:00:00'),
+(10039, 'APT-20260826-010', 10009, TIMESTAMP '2026-08-26 16:45:00', 'cancelled', 'Patient requested cancellation due to work schedule', TIMESTAMP '2026-08-25 16:45:00', TIMESTAMP '2026-08-26 08:00:00')
 ON CONFLICT DO NOTHING;
 
 -- Case 6: Completed consultations with vitals, diagnosis notes, and lab requests
@@ -248,7 +258,61 @@ INSERT INTO tbl_prescription (id, appointment_id, patient_id, disease_id, weight
   "HeightCm": 154.0,
   "Bmi": 24.5,
   "LabTestRequests": "HbA1c in three months; lipid profile"
-}$$, CURRENT_TIMESTAMP - INTERVAL '45 days', CURRENT_TIMESTAMP - INTERVAL '45 days', false)
+}$$, CURRENT_TIMESTAMP - INTERVAL '45 days', CURRENT_TIMESTAMP - INTERVAL '45 days', false),
+(10010, 10030, 10008, 10003, 57.5, 138, 86, $${
+  "ActualNotes": "Blood pressure elevated above baseline. Reinforced low-salt diet and morning adherence to Amlodipine.",
+  "TemperatureC": 36.6,
+  "PulseBpm": 76,
+  "Spo2Percent": 99,
+  "HeightCm": 154.0,
+  "Bmi": 24.2,
+  "LabTestRequests": "Urine microalbumin, Lipid profile"
+}$$, TIMESTAMP '2026-08-26 08:45:00', TIMESTAMP '2026-08-26 08:45:00', false),
+(10011, 10031, 10007, 10001, 68.5, 116, 76, $${
+  "ActualNotes": "Acute viral upper respiratory infection. Throat mildly erythematous. Encouraged hydration and symptomatic fever control.",
+  "TemperatureC": 38.4,
+  "PulseBpm": 94,
+  "Spo2Percent": 98,
+  "HeightCm": 170.0,
+  "Bmi": 23.7,
+  "LabTestRequests": "Complete Blood Count (CBC) if fever exceeds 48 hours"
+}$$, TIMESTAMP '2026-08-26 09:30:00', TIMESTAMP '2026-08-26 09:30:00', false),
+(10012, 10032, 10010, 10002, 74.0, 130, 82, $${
+  "ActualNotes": "Fasting glucose 138 mg/dL. Foot examination normal. Continuing Metformin titration and lifestyle counselling.",
+  "TemperatureC": 36.7,
+  "PulseBpm": 78,
+  "Spo2Percent": 98,
+  "HeightCm": 168.0,
+  "Bmi": 26.2,
+  "LabTestRequests": "Fasting Blood Sugar, HbA1c"
+}$$, TIMESTAMP '2026-08-26 10:20:00', TIMESTAMP '2026-08-26 10:20:00', false),
+(10013, 10033, 10009, 10004, 50.0, 112, 74, $${
+  "ActualNotes": "Seasonal allergic rhinitis with nasal congestion. Clear nasal turbinates. Prescribed 10-day Cetirizine.",
+  "TemperatureC": 36.5,
+  "PulseBpm": 72,
+  "Spo2Percent": 99,
+  "HeightCm": 160.0,
+  "Bmi": 19.5,
+  "LabTestRequests": null
+}$$, TIMESTAMP '2026-08-26 11:15:00', TIMESTAMP '2026-08-26 11:15:00', false),
+(10014, 10034, 10011, 10003, 62.0, 142, 90, $${
+  "ActualNotes": "Hyperlipidemia review with mild hypertension. Advised aerobic exercise 30 mins daily and low-cholesterol diet.",
+  "TemperatureC": 36.8,
+  "PulseBpm": 80,
+  "Spo2Percent": 98,
+  "HeightCm": 156.0,
+  "Bmi": 25.5,
+  "LabTestRequests": "Total Cholesterol, Triglycerides, HDL, LDL"
+}$$, TIMESTAMP '2026-08-26 12:00:00', TIMESTAMP '2026-08-26 12:00:00', false),
+(10015, 10035, 10012, 10006, 38.0, 106, 68, $${
+  "ActualNotes": "Mild wheezing after outdoor play. Chest clear on deep inspiration after bronchodilator trial. Spacer technique reviewed.",
+  "TemperatureC": 36.9,
+  "PulseBpm": 88,
+  "Spo2Percent": 97,
+  "HeightCm": 142.0,
+  "Bmi": 18.8,
+  "LabTestRequests": null
+}$$, TIMESTAMP '2026-08-26 13:45:00', TIMESTAMP '2026-08-26 13:45:00', false)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO tbl_prescription_item (id, prescription_id, medicine_id, medicine_batch_id, dosage, days, quantity, instruction, created_at, updated_at, delete_flag) VALUES
@@ -258,7 +322,16 @@ INSERT INTO tbl_prescription_item (id, prescription_id, medicine_id, medicine_ba
 (10004, 10002, 10007, 10009, '5 mg', 30, 30, 'Take one tablet every morning and keep a home blood pressure log.', CURRENT_TIMESTAMP - INTERVAL '14 days', CURRENT_TIMESTAMP - INTERVAL '14 days', false),
 (10005, 10002, 10006, 10008, '500 mg', 30, 60, 'Take one tablet twice daily with meals.', CURRENT_TIMESTAMP - INTERVAL '14 days', CURRENT_TIMESTAMP - INTERVAL '14 days', false),
 (10006, 10003, 10006, 10008, '500 mg', 30, 60, 'Take one tablet twice daily with meals.', CURRENT_TIMESTAMP - INTERVAL '45 days', CURRENT_TIMESTAMP - INTERVAL '45 days', false),
-(10007, 10003, 10009, NULL, '1 tablet', 30, 30, 'Take one tablet daily after breakfast.', CURRENT_TIMESTAMP - INTERVAL '45 days', CURRENT_TIMESTAMP - INTERVAL '45 days', false)
+(10007, 10003, 10009, NULL, '1 tablet', 30, 30, 'Take one tablet daily after breakfast.', CURRENT_TIMESTAMP - INTERVAL '45 days', CURRENT_TIMESTAMP - INTERVAL '45 days', false),
+(10020, 10010, 10007, 10009, '5 mg', 30, 30, 'Take one tablet every morning after breakfast.', TIMESTAMP '2026-08-26 08:45:00', TIMESTAMP '2026-08-26 08:45:00', false),
+(10021, 10011, 10001, 10002, '500 mg', 3, 9, 'Take one tablet every 8 hours for fever/headache.', TIMESTAMP '2026-08-26 09:30:00', TIMESTAMP '2026-08-26 09:30:00', false),
+(10022, 10011, 10002, 10004, '500 mg', 5, 15, 'Take one capsule three times daily after meals.', TIMESTAMP '2026-08-26 09:30:00', TIMESTAMP '2026-08-26 09:30:00', false),
+(10023, 10011, 10003, 10005, '10 mg', 3, 3, 'Take one tablet at bedtime for runny nose.', TIMESTAMP '2026-08-26 09:30:00', TIMESTAMP '2026-08-26 09:30:00', false),
+(10024, 10012, 10006, 10008, '500 mg', 30, 60, 'Take one tablet twice daily with meals.', TIMESTAMP '2026-08-26 10:20:00', TIMESTAMP '2026-08-26 10:20:00', false),
+(10025, 10012, 10009, NULL, '1 tablet', 30, 30, 'Take one tablet daily after breakfast.', TIMESTAMP '2026-08-26 10:20:00', TIMESTAMP '2026-08-26 10:20:00', false),
+(10026, 10013, 10003, 10005, '10 mg', 10, 10, 'Take one tablet every evening.', TIMESTAMP '2026-08-26 11:15:00', TIMESTAMP '2026-08-26 11:15:00', false),
+(10027, 10014, 10007, 10009, '5 mg', 30, 30, 'Take one tablet in the morning with water.', TIMESTAMP '2026-08-26 12:00:00', TIMESTAMP '2026-08-26 12:00:00', false),
+(10028, 10015, 10005, 10007, '100 mcg', 30, 1, 'Inhale 2 puffs as needed for wheeze or tightness.', TIMESTAMP '2026-08-26 13:45:00', TIMESTAMP '2026-08-26 13:45:00', false)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO tbl_prescription_item_schedule (id, prescription_item_id, start_date, end_date, dose_time, dose_quantity, dose_unit, meal_timing, route, interval_hours, interval_days, day_of_week, is_as_needed, body_site, note, created_at, updated_at, delete_flag) VALUES
@@ -270,7 +343,17 @@ INSERT INTO tbl_prescription_item_schedule (id, prescription_item_id, start_date
 (10006, 10005, CURRENT_DATE - 14, CURRENT_DATE + 15, 'evening', 1.00, 'tablet', 'with_meal', 'oral', NULL, 1, NULL, false, NULL, 'Second daily dose.', CURRENT_TIMESTAMP - INTERVAL '14 days', CURRENT_TIMESTAMP - INTERVAL '14 days', false),
 (10007, 10006, CURRENT_DATE - 45, CURRENT_DATE - 16, 'morning', 1.00, 'tablet', 'with_meal', 'oral', NULL, 1, NULL, false, NULL, 'First daily dose.', CURRENT_TIMESTAMP - INTERVAL '45 days', CURRENT_TIMESTAMP - INTERVAL '45 days', false),
 (10008, 10006, CURRENT_DATE - 45, CURRENT_DATE - 16, 'evening', 1.00, 'tablet', 'with_meal', 'oral', NULL, 1, NULL, false, NULL, 'Second daily dose.', CURRENT_TIMESTAMP - INTERVAL '45 days', CURRENT_TIMESTAMP - INTERVAL '45 days', false),
-(10009, 10007, CURRENT_DATE - 45, CURRENT_DATE - 16, 'morning', 1.00, 'tablet', 'after_meal', 'oral', NULL, 1, NULL, false, NULL, 'Nutritional support during diet adjustment.', CURRENT_TIMESTAMP - INTERVAL '45 days', CURRENT_TIMESTAMP - INTERVAL '45 days', false)
+(10009, 10007, CURRENT_DATE - 45, CURRENT_DATE - 16, 'morning', 1.00, 'tablet', 'after_meal', 'oral', NULL, 1, NULL, false, NULL, 'Nutritional support during diet adjustment.', CURRENT_TIMESTAMP - INTERVAL '45 days', CURRENT_TIMESTAMP - INTERVAL '45 days', false),
+(10020, 10020, DATE '2026-08-26', DATE '2026-09-24', 'morning', 1.00, 'tablet', 'after_meal', 'oral', NULL, 1, NULL, false, NULL, 'Check morning blood pressure regularly.', TIMESTAMP '2026-08-26 08:45:00', TIMESTAMP '2026-08-26 08:45:00', false),
+(10021, 10021, DATE '2026-08-26', DATE '2026-08-28', 'custom', 1.00, 'tablet', 'after_meal', 'oral', 8, NULL, NULL, true, NULL, 'Take only when fever or body ache is present.', TIMESTAMP '2026-08-26 09:30:00', TIMESTAMP '2026-08-26 09:30:00', false),
+(10022, 10022, DATE '2026-08-26', DATE '2026-08-30', 'morning', 1.00, 'capsule', 'after_meal', 'oral', NULL, 1, NULL, false, NULL, 'Complete full 5-day antibiotic course.', TIMESTAMP '2026-08-26 09:30:00', TIMESTAMP '2026-08-26 09:30:00', false),
+(10023, 10023, DATE '2026-08-26', DATE '2026-08-28', 'night', 1.00, 'tablet', 'after_meal', 'oral', NULL, 1, NULL, false, NULL, 'May cause mild drowsiness.', TIMESTAMP '2026-08-26 09:30:00', TIMESTAMP '2026-08-26 09:30:00', false),
+(10024, 10024, DATE '2026-08-26', DATE '2026-09-24', 'morning', 1.00, 'tablet', 'with_meal', 'oral', NULL, 1, NULL, false, NULL, 'Morning dose with breakfast.', TIMESTAMP '2026-08-26 10:20:00', TIMESTAMP '2026-08-26 10:20:00', false),
+(10025, 10024, DATE '2026-08-26', DATE '2026-09-24', 'evening', 1.00, 'tablet', 'with_meal', 'oral', NULL, 1, NULL, false, NULL, 'Evening dose with dinner.', TIMESTAMP '2026-08-26 10:20:00', TIMESTAMP '2026-08-26 10:20:00', false),
+(10026, 10025, DATE '2026-08-26', DATE '2026-09-24', 'morning', 1.00, 'tablet', 'after_meal', 'oral', NULL, 1, NULL, false, NULL, 'Daily vitamin supplement.', TIMESTAMP '2026-08-26 10:20:00', TIMESTAMP '2026-08-26 10:20:00', false),
+(10027, 10026, DATE '2026-08-26', DATE '2026-09-04', 'night', 1.00, 'tablet', 'after_meal', 'oral', NULL, 1, NULL, false, NULL, 'Evening dose for allergy control.', TIMESTAMP '2026-08-26 11:15:00', TIMESTAMP '2026-08-26 11:15:00', false),
+(10028, 10027, DATE '2026-08-26', DATE '2026-09-24', 'morning', 1.00, 'tablet', 'after_meal', 'oral', NULL, 1, NULL, false, NULL, 'Take every morning.', TIMESTAMP '2026-08-26 12:00:00', TIMESTAMP '2026-08-26 12:00:00', false),
+(10029, 10028, DATE '2026-08-26', DATE '2026-09-24', 'custom', 2.00, 'puff', 'anytime', 'inhalation', NULL, NULL, NULL, true, NULL, 'Use spacer for inhalation.', TIMESTAMP '2026-08-26 13:45:00', TIMESTAMP '2026-08-26 13:45:00', false)
 ON CONFLICT DO NOTHING;
 
 -- Case 7: Payments covering gateway success, cash collection, and manual proof review
@@ -294,7 +377,16 @@ INSERT INTO tbl_payment (id, appointment_id, prescription_id, amount, tax, charg
 (10022, 10026, NULL, 35000.00, 1750.00, 0.00, 'cbpay', 'pending', NULL, NULL, TIMESTAMP '2026-08-23 10:30:00'),
 (10027, 10012, NULL, 20000.00, 1000.00, 0.00, 'kpay', 'paid', NULL, TIMESTAMP '2026-08-08 14:30:00', TIMESTAMP '2026-08-08 14:30:00'),
 (10028, 10014, NULL, 35000.00, 1750.00, 0.00, 'wavepay', 'paid', NULL, TIMESTAMP '2026-08-15 10:15:00', TIMESTAMP '2026-08-15 10:15:00'),
-(10029, 10015, NULL, 25000.00, 1250.00, 0.00, 'cash', 'paid', NULL, TIMESTAMP '2026-08-19 16:15:00', TIMESTAMP '2026-08-19 16:15:00')
+(10029, 10015, NULL, 25000.00, 1250.00, 0.00, 'cash', 'paid', NULL, TIMESTAMP '2026-08-19 16:15:00', TIMESTAMP '2026-08-19 16:15:00'),
+(10030, 10030, 10010, 35000.00, 1750.00, 0.00, 'kpay', 'paid', '/demo-receipt.png', TIMESTAMP '2026-08-26 09:00:00', TIMESTAMP '2026-08-26 09:00:00'),
+(10031, 10031, 10011, 30000.00, 1500.00, 0.00, 'wavepay', 'paid', '/demo-receipt.png', TIMESTAMP '2026-08-26 09:45:00', TIMESTAMP '2026-08-26 09:45:00'),
+(10032, 10032, 10012, 45000.00, 2250.00, 0.00, 'cash', 'paid', NULL, TIMESTAMP '2026-08-26 10:30:00', TIMESTAMP '2026-08-26 10:30:00'),
+(10033, 10033, 10013, 20000.00, 1000.00, 0.00, 'cbpay', 'paid', '/demo-receipt.png', TIMESTAMP '2026-08-26 11:30:00', TIMESTAMP '2026-08-26 11:30:00'),
+(10034, 10034, 10014, 60000.00, 3000.00, 0.00, 'kpay', 'paid', '/demo-receipt.png', TIMESTAMP '2026-08-26 12:15:00', TIMESTAMP '2026-08-26 12:15:00'),
+(10035, 10035, 10015, 35000.00, 1750.00, 0.00, 'cash', 'paid', NULL, TIMESTAMP '2026-08-26 14:00:00', TIMESTAMP '2026-08-26 14:00:00'),
+(10036, 10036, NULL, 25000.00, 1250.00, 0.00, 'kpay', 'pending', '/demo-receipt.png', NULL, TIMESTAMP '2026-08-26 14:30:00'),
+(10037, 10037, NULL, 28000.00, 1400.00, 0.00, 'wavepay', 'pending', '/demo-receipt.png', NULL, TIMESTAMP '2026-08-26 15:15:00'),
+(10038, 10038, NULL, 32000.00, 1600.00, 0.00, 'cbpay', 'pending', '/demo-receipt.png', NULL, TIMESTAMP '2026-08-26 16:00:00')
 ON CONFLICT DO NOTHING;
 
 -- Case 8: Full standard system permissions (50 system permissions)
@@ -403,7 +495,17 @@ INSERT INTO tbl_notification (id, user_id, title, description, action_route, cre
 (10003, 10005, 'Appointment Pending Approval', 'Your blood sugar follow-up appointment is pending clinic confirmation.', '/appointments/10005', CURRENT_TIMESTAMP - INTERVAL '10 hours', CURRENT_TIMESTAMP - INTERVAL '10 hours', false),
 (10004, 10001, 'Low Stock Alert', 'Salbutamol 100 mcg inhaler has 6 units remaining. Please reorder before today''s asthma appointments.', '/medicines/alerts', CURRENT_TIMESTAMP - INTERVAL '2 hours', CURRENT_TIMESTAMP - INTERVAL '2 hours', false),
 (10005, 10007, 'Batch Nearing Expiry', 'Omeprazole 20 mg capsule batch OMP-YGN-2605-A expires in 10 days.', '/medicines/alerts', CURRENT_TIMESTAMP - INTERVAL '3 hours', CURRENT_TIMESTAMP - INTERVAL '3 hours', false),
-(10006, 10002, 'Manual Payment Proof Uploaded', 'WavePay proof for appointment APT-DEMO-AST-003 is waiting for verification.', '/payments/10003', CURRENT_TIMESTAMP - INTERVAL '30 minutes', CURRENT_TIMESTAMP - INTERVAL '30 minutes', false)
+(10006, 10002, 'Manual Payment Proof Uploaded', 'WavePay proof for appointment APT-DEMO-AST-003 is waiting for verification.', '/payments/10003', CURRENT_TIMESTAMP - INTERVAL '30 minutes', CURRENT_TIMESTAMP - INTERVAL '30 minutes', false),
+(10010, 10010, 'Queue Turn Ready', 'Dr. Kyaw Zin is ready for your consultation. Please proceed to Room 1.', '/appointments/10036', TIMESTAMP '2026-08-26 14:25:00', TIMESTAMP '2026-08-26 14:25:00', false),
+(10011, 10008, 'Payment Received', 'KBZPay payment of 35,000 MMK received for appointment APT-20260826-001.', '/payments/10030', TIMESTAMP '2026-08-26 09:02:00', TIMESTAMP '2026-08-26 09:02:00', false)
+ON CONFLICT DO NOTHING;
+
+-- Case 10: Follow-up referrals for completed consultations
+INSERT INTO tbl_follow_up (id, patient_id, appointment_id, prescription_id, due_at, recommendation, status, created_at, updated_at, delete_flag) VALUES
+(10010, 10008, 10030, 10010, TIMESTAMP '2026-09-09 08:30:00', 'Follow-up blood pressure check and cardiovascular assessment.', 'pending', TIMESTAMP '2026-08-26 08:45:00', TIMESTAMP '2026-08-26 08:45:00', false),
+(10011, 10007, 10031, 10011, TIMESTAMP '2026-09-02 09:15:00', 'Check resolution of upper respiratory symptoms and fever.', 'pending', TIMESTAMP '2026-08-26 09:30:00', TIMESTAMP '2026-08-26 09:30:00', false),
+(10012, 10010, 10032, 10012, TIMESTAMP '2026-09-23 10:00:00', 'Monthly glycemic control & HbA1c review.', 'pending', TIMESTAMP '2026-08-26 10:20:00', TIMESTAMP '2026-08-26 10:20:00', false),
+(10013, 10012, 10035, 10015, TIMESTAMP '2026-09-09 13:30:00', 'Pediatric asthma review & daytime symptom check.', 'pending', TIMESTAMP '2026-08-26 13:45:00', TIMESTAMP '2026-08-26 13:45:00', false)
 ON CONFLICT DO NOTHING;
 
 -- Keep SERIAL sequences above explicit demo IDs.
@@ -420,6 +522,7 @@ SELECT setval(pg_get_serial_sequence('tbl_medicine_batch', 'id'), GREATEST((SELE
 SELECT setval(pg_get_serial_sequence('tbl_prescription_item', 'id'), GREATEST((SELECT COALESCE(MAX(id), 1) FROM tbl_prescription_item), 1), true);
 SELECT setval(pg_get_serial_sequence('tbl_prescription_item_schedule', 'id'), GREATEST((SELECT COALESCE(MAX(id), 1) FROM tbl_prescription_item_schedule), 1), true);
 SELECT setval(pg_get_serial_sequence('tbl_payment', 'id'), GREATEST((SELECT COALESCE(MAX(id), 1) FROM tbl_payment), 1), true);
+SELECT setval(pg_get_serial_sequence('tbl_follow_up', 'id'), GREATEST((SELECT COALESCE(MAX(id), 1) FROM tbl_follow_up), 1), true);
 SELECT setval(pg_get_serial_sequence('tbl_permission', 'id'), GREATEST((SELECT COALESCE(MAX(id), 1) FROM tbl_permission), 1), true);
 SELECT setval(pg_get_serial_sequence('tbl_role_permission', 'id'), GREATEST((SELECT COALESCE(MAX(id), 1) FROM tbl_role_permission), 1), true);
 SELECT setval(pg_get_serial_sequence('tbl_notification', 'id'), GREATEST((SELECT COALESCE(MAX(id), 1) FROM tbl_notification), 1), true);

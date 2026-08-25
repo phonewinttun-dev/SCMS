@@ -4,7 +4,6 @@ import {
   PersonIcon,
   PlusIcon,
   Cross2Icon,
-  MagnifyingGlassIcon,
   ClockIcon,
   ChevronLeftIcon,
 } from "@radix-ui/react-icons";
@@ -65,9 +64,6 @@ export default function UserDashboard() {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-
-  // Search State
-  const [searchQuery, setSearchQuery] = useState("");
 
   // Booking Modal State (Matching Reference Screen 2)
   const [bookingOpen, setBookingOpen] = useState(false);
@@ -183,31 +179,6 @@ export default function UserDashboard() {
               ? "ယနေ့ သင့်ကျန်းမာရေးအခြေအနေ မည်သို့ရှိပါသလဲ?"
               : "How are you feeling today?"}
           </h1>
-        </div>
-
-        {/* Search Bar matching Reference UI */}
-        <div className="relative flex items-center">
-          <MagnifyingGlassIcon className="absolute left-4 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={
-              language === "mm"
-                ? "ဆေးခန်းဝန်ဆောင်မှု သို့မဟုတ် ပြသမည့်အကြောင်းအရာ ရှာဖွေပါ..."
-                : "Search a clinic service or consultation type..."
-            }
-            className="w-full rounded-2xl border border-border/80 bg-card/95 pl-11 pr-11 py-3 text-base sm:text-sm text-foreground placeholder:text-muted-foreground shadow-2xs focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 p-1 rounded-lg text-muted-foreground hover:text-foreground"
-              aria-label="Clear Search"
-            >
-              <Cross2Icon className="h-4 w-4" />
-            </button>
-          )}
         </div>
       </section>
 

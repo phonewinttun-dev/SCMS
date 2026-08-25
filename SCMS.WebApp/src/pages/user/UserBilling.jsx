@@ -8,7 +8,6 @@ import {
   ImageIcon,
   UploadIcon,
   TrashIcon,
-  MagnifyingGlassIcon,
   PersonIcon,
   CheckIcon,
 } from "@radix-ui/react-icons";
@@ -43,7 +42,6 @@ export default function UserBilling() {
   // Filters state
   const [statusFilter, setStatusFilter] = useState("all"); // "all" | "unpaid" | "pending" | "paid"
   const [patientFilter, setPatientFilter] = useState("all"); // "all" | string patientId
-  const [searchTerm, setSearchTerm] = useState("");
 
   useScrollLock(Boolean(payingInvoice || previewModalImg));
 
@@ -96,21 +94,9 @@ export default function UserBilling() {
         if (String(inv.patientId) !== String(patientFilter)) return false;
       }
 
-      // Search keyword filter
-      if (searchTerm.trim()) {
-        const term = searchTerm.toLowerCase().trim();
-        const code = String(inv.appointmentCode || "").toLowerCase();
-        const pName = String(inv.patientName || "").toLowerCase();
-        const txn = String(inv.transactionRef || "").toLowerCase();
-        const amt = String(inv.amount || "");
-        if (!code.includes(term) && !pName.includes(term) && !txn.includes(term) && !amt.includes(term)) {
-          return false;
-        }
-      }
-
       return true;
     });
-  }, [allInvoices, statusFilter, patientFilter, searchTerm]);
+  }, [allInvoices, statusFilter, patientFilter]);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -281,49 +267,19 @@ export default function UserBilling() {
           </button>
         </div>
 
-        {/* Search & Patient Profile Filter Row */}
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-          {/* Patient Selector */}
-          {patientProfiles.length > 0 && (
-            <div className="sm:col-span-1">
-              <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                Filter By Patient
-              </label>
-              <Select
-                value={patientFilter}
-                onChange={(val) => setPatientFilter(val)}
-                options={patientSelectOptions}
-              />
-            </div>
-          )}
-
-          {/* Keyword Search Box (Fixed padding to prevent icon overlap) */}
-          <div className={`sm:col-span-1 ${patientProfiles.length > 0 ? "md:col-span-2" : "sm:col-span-2"}`}>
+        {/* Patient Profile Filter Row */}
+        {patientProfiles.length > 0 && (
+          <div className="max-w-xs pt-1">
             <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-              Search Invoices
+              Filter By Patient
             </label>
-            <div className="relative flex items-center">
-              <MagnifyingGlassIcon className="absolute left-3.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search by appointment code, patient name, amount..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-11 min-h-[44px] rounded-2xl border border-input bg-background/90 pl-10 pr-10 py-2.5 text-xs text-foreground placeholder:text-muted-foreground shadow-2xs focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-2.5 p-1 rounded-lg text-muted-foreground hover:text-foreground"
-                  aria-label="Clear search"
-                >
-                  <Cross2Icon className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
+            <Select
+              value={patientFilter}
+              onChange={(val) => setPatientFilter(val)}
+              options={patientSelectOptions}
+            />
           </div>
-        </div>
+        )}
       </section>
 
       {/* Invoices List Display */}
@@ -332,13 +288,12 @@ export default function UserBilling() {
           <h3 className="text-base font-bold text-foreground">
             Invoices & Payments ({filteredInvoices.length})
           </h3>
-          {(statusFilter !== "all" || patientFilter !== "all" || searchTerm) && (
+          {(statusFilter !== "all" || patientFilter !== "all") && (
             <button
               type="button"
               onClick={() => {
                 setStatusFilter("all");
                 setPatientFilter("all");
-                setSearchTerm("");
               }}
               className="text-xs text-orange-600 dark:text-orange-400 font-semibold hover:underline"
             >
@@ -354,7 +309,7 @@ export default function UserBilling() {
             <p className="max-w-md mx-auto">
               {allInvoices.length === 0
                 ? "There are no invoice records registered for your patient profile."
-                : "No payments match your selected filter criteria. Try resetting your search or status filter."}
+                : "No payments match your selected filter criteria. Try resetting your status or patient filter."}
             </p>
           </div>
         ) : (

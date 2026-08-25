@@ -330,23 +330,16 @@ export default function AuthPage({ mode = "login" }) {
                   </Button>
                 </form>
 
-                <div className="mt-6 pt-4 border-t border-border/80 text-center text-xs text-muted-foreground">
-                  {isRegister ? (
+                {isRegister && (
+                  <div className="mt-6 pt-4 border-t border-border/80 text-center text-xs text-muted-foreground">
                     <span>
                       Already have an account?{" "}
                       <Link to="/login" className="font-semibold text-foreground hover:underline">
                         {t.login}
                       </Link>
                     </span>
-                  ) : (
-                    <span>
-                      Need an account?{" "}
-                      <Link to="/register" className="font-semibold text-foreground hover:underline">
-                        {t.register}
-                      </Link>
-                    </span>
-                  )}
-                </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
